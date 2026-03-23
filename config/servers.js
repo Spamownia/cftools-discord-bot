@@ -1,19 +1,14 @@
 const { clientConfig } = require('../src/util');
 const colors = require('../config/colors.json');
 
-/**
- * For more information:
- * {@link https://wiki.mirasaki.dev/docs/cftools-discord-bot/server-configuration}
- */
 module.exports = [
   {
-    // Server data
-    NAME: 'Husaria',
-    CFTOOLS_SERVER_API_ID: '69ba997375cb13ab97a0ad34',
-    SERVER_IPV4: '147.93.162.60',
-    SERVER_PORT: 3702,
-    CFTOOLS_WEBHOOK_CHANNEL_ID: '1477302685542645991',
-    CFTOOLS_WEBHOOK_USER_ID: '1477302685542645991',
+    NAME: process.env.SERVER_NAME || 'Husaria',
+    CFTOOLS_SERVER_API_ID: process.env.CFTOOLS_SERVER_API_ID || '69ba997375cb13ab97a0ad34',
+    SERVER_IPV4: process.env.SERVER_IP || '147.93.162.60',
+    SERVER_PORT: parseInt(process.env.SERVER_PORT) || 3702,
+    CFTOOLS_WEBHOOK_CHANNEL_ID: process.env.WEBHOOK_CHANNEL_ID || '1477302685542645991',
+    CFTOOLS_WEBHOOK_USER_ID: process.env.WEBHOOK_USER_ID || '1477302685542645991',
 
     // Command config
     STATISTICS_INCLUDE_ZONES_HEATMAP: true,
@@ -21,9 +16,11 @@ module.exports = [
     STATISTICS_HIDE_PLAYER_NAME_HISTORY: true,
     SERVER_INFO_INCLUDE_MOD_LIST: true,
 
-    // Live Discord > DayZ chat feed configuration
+    // Live Discord > DayZ chat feed
     USE_CHAT_FEED: true,
-    CHAT_FEED_CHANNEL_IDS: [ '1477302685542645991' ],
+    CHAT_FEED_CHANNEL_IDS: process.env.CHAT_FEED_CHANNEL_IDS 
+      ? process.env.CHAT_FEED_CHANNEL_IDS.split(',') 
+      : ['1477302685542645991'],
     CHAT_FEED_REQUIRED_ROLE_IDS: [],
     CHAT_FEED_USE_DISCORD_PREFIX: true,
     CHAT_FEED_USE_DISPLAY_NAME: true,
@@ -46,51 +43,33 @@ module.exports = [
         color: colors.blue
       },
       {
-        // Matches everyone - Doesn't use any color
         roleIds: [],
         displayTag: '[SURVIVOR]',
         enabled: false
       }
     ],
 
-    // Teleport config
+    // Teleport, Watch list, Kill Feed, Leaderboard
     USE_TELEPORT_LOCATIONS: true,
     TELEPORT_LOCATIONS_FILE_NAME: 'chernarus',
 
-    // Watch list config
-    WATCH_LIST_CHANNEL_ID: '1477302685542645991',
-    WATCH_LIST_NOTIFICATION_ROLE_ID: '1477302685542645991',
+    WATCH_LIST_CHANNEL_ID: process.env.WATCH_LIST_CHANNEL_ID || '1477302685542645991',
+    WATCH_LIST_NOTIFICATION_ROLE_ID: process.env.WEBHOOK_USER_ID || '1477302685542645991',
 
-    // Kill Feed config
     USE_KILL_FEED: true,
     KILL_FEED_DELAY: 5,
-    KILL_FEED_CHANNEL_ID: '1477302685542645991',
+    KILL_FEED_CHANNEL_ID: process.env.KILL_FEED_CHANNEL_ID || '1477302685542645991',
     KILL_FEED_MESSAGE_IDENTIFIER: ' Zabity przez ',
     KILL_FEED_REMOVE_IDENTIFIER: false,
 
-    // Leaderboard config
     OVERALL_RANKING_STAT: 'KILLS',
     LEADERBOARD_DEFAULT_SORTING_STAT: 'OVERALL',
     LEADERBOARD_PLAYER_LIMIT: 25,
-    LEADERBOARD_BLACKLIST: [
-      '6284d7a30873a63f22e34f34',
-      'CFTools IDs to exclude from the blacklist',
-      'always use commas (,) at the end of the line EXCEPT THE LAST ONE > like so'
-    ],
-    LEADERBOARD_STATS: [
-      'OVERALL',
-      'KILLS',
-      'KILL_DEATH_RATIO',
-      'LONGEST_KILL',
-      'PLAYTIME',
-      'LONGEST_SHOT',
-      'DEATHS',
-      'SUICIDES'
-    ],
+    LEADERBOARD_BLACKLIST: [],
+    LEADERBOARD_STATS: ['OVERALL','KILLS','KILL_DEATH_RATIO','LONGEST_KILL','PLAYTIME','LONGEST_SHOT','DEATHS','SUICIDES'],
 
-    // Automatic Leaderboard
     AUTO_LB_ENABLED: true,
-    AUTO_LB_CHANNEL_ID: '1477302685542645991',
+    AUTO_LB_CHANNEL_ID: process.env.AUTO_LB_CHANNEL_ID || '1477302685542645991',
     AUTO_LB_INTERVAL_IN_MINUTES: 60,
     AUTO_LB_REMOVE_OLD_MESSAGES: true,
     AUTO_LB_PLAYER_LIMIT: 100,
