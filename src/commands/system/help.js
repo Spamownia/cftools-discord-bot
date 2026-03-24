@@ -1,17 +1,18 @@
 /**
- * Komenda /help - FINALNA, STABILNA WERSJA (naprawiony logger + natychmiastowa reply)
+ * Komenda /help - FINALNA WERSJA (używa builders + natychmiastowa reply)
+ * Naprawia "Aplikacja nie reaguje"
  */
 
 const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
-const logger = require('@mirasaki/logger');        // ← DODANE
+const logger = require('@mirasaki/logger');
 const { emojis } = require('../../client');
 const pkg = require('../../../package.json');
 
 const execute = async (interaction) => {
   try {
-    logger.debug(`[HELP] Wykonywanie komendy dla ${interaction.user.tag}`);
+    logger.debug(`[HELP] Komenda uruchomiona przez ${interaction.user.tag}`);
 
-    // Natychmiastowa odpowiedź
+    // Tworzenie Select Menu przy użyciu builders (zalecane w discord.js v14)
     const row = new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId('help')
@@ -60,6 +61,7 @@ const execute = async (interaction) => {
       }
     };
 
+    // NATYCHMIASTOWA odpowiedź (najpewniejsza metoda)
     await interaction.reply({
       embeds: [embed],
       components: [row],
@@ -81,7 +83,7 @@ const execute = async (interaction) => {
   }
 };
 
-// === OBOWIĄZKOWE METODY DLA SYSTEMU ŁADOWANIA ===
+// === Wymagane metody przez system ładowania komend ===
 execute.load = (filePath, collection) => {
   const data = new SlashCommandBuilder()
     .setName('help')
