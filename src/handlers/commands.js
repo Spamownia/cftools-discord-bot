@@ -1,5 +1,5 @@
 /**
- * Command Handler - Ultimate Debug Version
+ * Command Handler - Ultimate Debug Version (FINAL)
  */
 
 const logger = require('@mirasaki/logger');
@@ -21,15 +21,20 @@ const handleCommand = async (interaction) => {
 
   if (!clientCmd) {
     logger.syserr(`[INTERACTION] Komenda ${commandName} nie znaleziona`);
-    return interaction.reply({ content: `${emojis?.error || '❌'} Command not found.`, ephemeral: true }).catch(() => {});
+    return interaction.reply({ 
+      content: `${emojis?.error || '❌'} Command not found.`, 
+      ephemeral: true 
+    }).catch(() => {});
   }
 
   logger.debug(`[INTERACTION] Znaleziono komendę: ${commandName} | Typ: ${clientCmd.constructor.name}`);
 
-  // === NAJWAŻNIEJSZE - deferujemy natychmiast ===
+  // === DEFER OD RAZU ===
   if (!interaction.replied && !interaction.deferred) {
     logger.debug(`[INTERACTION] Deferuję odpowiedź dla ${commandName}`);
-    await interaction.deferReply().catch(err => logger.syserr(`Defer failed: ${err.message}`));
+    await interaction.deferReply().catch(err => {
+      logger.syserr(`Defer failed for ${commandName}: ${err.message}`);
+    });
   }
 
   try {
@@ -45,19 +50,21 @@ const handleCommand = async (interaction) => {
       throw new Error(`Brak metody execute() lub run() w komendzie ${commandName}`);
     }
   } catch (error) {
-    logger.syserr(`[INTERACTION] Błąd podczas wykonywania komendy ${commandName}`);
-    console.error(error);
+    logger.syserr(`[INTERACTION] BŁĄD w komendzie ${commandName}`);
+    console.error(error);   // Pełny stack trace w logach Rendera
+
+    // Pokazujemy użytkownikowi dokładniejszy błąd (do 1800 znaków)
+    const errorMsg = error.message || error.toString();
 
     await interaction.editReply({
-      content: `${emojis?.error || '❌'} Wystąpił błąd podczas wykonywania komendy.`
+      content: `${emojis?.error || '❌'} Wystąpił błąd:\n\`\`\`js\n${errorMsg.slice(0, 1800)}\n\`\`\``
     }).catch(() => {});
   }
 };
 
-// Eksportujemy tylko to, co jest naprawdę potrzebne
+// Eksport (pozostałe funkcje jako puste, żeby nie psuć importów w index.js)
 module.exports = {
   handleCommand,
-  // Pozostałe funkcje (żeby nie psuć importów w index.js)
   clearApplicationCommandData: () => {},
   refreshSlashCommandData: () => {},
   isAppropriateCommandFilter: () => true,
