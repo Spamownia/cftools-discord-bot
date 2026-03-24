@@ -5,35 +5,42 @@ const chalk = require('chalk');
 const {
   Client, GatewayIntentBits, ActivityType, PresenceUpdateStatus
 } = require('discord.js');
+
 // Argv
 const modeArg = process.argv.find((arg) => arg.startsWith('mode='));
+
 // Local imports
 const pkg = require('../package');
-const { clearApplicationCommandData, refreshSlashCommandData } = require('./handlers/commands');
+const { clearApplicationCommandData, refreshSlashCommandData, handleCommand } = require('./handlers/commands');
 const {
   getFiles, titleCase, getRuntime, clientConfig
 } = require('./util');
 const config = clientConfig;
 const path = require('path');
 const clientExtensions = require('./client');
+
 // Clear the console in non-production modes & print vanity
 process.env.NODE_ENV !== 'production' && console.clear();
 const packageIdentifierStr = `${ pkg.name }@${ pkg.version }`;
 logger.info(`${ chalk.greenBright.underline(packageIdentifierStr) } by ${ chalk.cyanBright.bold(pkg.author) }`);
+
 // Initializing/declaring our variables
 const initTimerStart = process.hrtime.bigint();
+
 // Array of Intents your bot needs
-// https://discord.com/developers/docs/topics/gateway#gateway-intents
 const intents = [
   GatewayIntentBits.Guilds,
   GatewayIntentBits.GuildMessages,
   GatewayIntentBits.MessageContent
 ];
+
 const presenceActivityMap = config.presence.activities.map(
   (act) => ({
-    ...act, type: ActivityType[titleCase(act.type)]
+    ...act, 
+    type: ActivityType[titleCase(act.type)]
   })
 );
+
 // Building our discord.js client
 const client = new Client({
   intents,
@@ -42,6 +49,7 @@ const client = new Client({
     activities: presenceActivityMap
   }
 });
+
 // Destructuring from env
 const {
   DISCORD_BOT_TOKEN,
@@ -56,58 +64,52 @@ const {
   MODAL_INTERACTION_DIR,
   SELECT_MENU_INTERACTION_DIR
 } = process.env;
+
 // Listen for user requested shutdown
 process.on('SIGINT', () => {
   logger.info('\nGracefully shutting down from SIGINT (Ctrl-C)');
   process.exit(0);
 });
-// Error handling / keep alive - ONLY in production as you shouldn't have any
-// unhandledRejection or uncaughtException errors in production
-// these should be addressed in development
-if (process.env.NODE_ENV !== 'production') {
-  process.on('unhandledRejection', (reason, promise) => {
-    logger.syserr('Encountered unhandledRejection error (catch):');
-    console.error(reason, promise);
-  });
-  process.on('uncaughtException', (err, origin) => {
-    logger.syserr('Encountered uncaughtException error:');
-    console.error(err, origin);
-  });
-}
-/**
- * Register our listeners using client.on(fileNameWithoutExtension)
- * @private
- */
+
+// Global error handling
+process.on('unhandledRejection', (reason, promise) => {
+  logger.syserr('Encountered unhandledRejection:');
+  console.error(reason);
+});
+process.on('uncaughtException', (err) => {
+  logger.syserr('Encountered uncaughtException:');
+  console.error(err);
+});
+
+// Register our listeners using client.on(fileNameWithoutExtension)
 const registerListeners = () => {
   const eventFiles = getFiles('src/listeners', '.js');
-  const eventNames = eventFiles.map((filePath) => filePath.slice(
-    filePath.lastIndexOf(path.sep) + 1,
-    filePath.lastIndexOf('.')
-  ));
-  // Debug logging
+  const eventNames = eventFiles.map((filePath) => 
+    filePath.slice(filePath.lastIndexOf(path.sep) + 1, filePath.lastIndexOf('.'))
+  );
+
   if (DEBUG_ENABLED === 'true') {
     logger.debug(`Registering ${ eventFiles.length } listeners: ${ eventNames.map((name) => chalk.whiteBright(name)).join(', ') }`);
   }
-  // Looping over our event files
+
   for (const filePath of eventFiles) {
     const eventName = filePath.slice(
       filePath.lastIndexOf(path.sep) + 1,
       filePath.lastIndexOf('.')
     );
-    // Binding our event to the client
     const eventFile = require(filePath);
     client.on(eventName, (...received) => eventFile(client, ...received));
   }
 };
-// Use an Immediately Invoked Function Expressions (IIFE) if you need to use await
-// In the index.js main function
-// (async () => {})();
-// Containerizing? =) all our client extensions
+
+// Containerizing all our client extensions
 client.container = clientExtensions;
-// Clear only executes if enabled in .env
+
+// Clear slash commands if enabled in .env
 if (CLEAR_SLASH_COMMAND_API_DATA === 'true') {
   clearApplicationCommandData();
 }
+
 // Destructure from our client extensions container
 const {
   commands,
@@ -117,114 +119,105 @@ const {
   autoCompletes,
   selectMenus
 } = client.container;
-// Binding our Chat Input/Slash commands
+
+// === LOADING COMMANDS ===
 logger.debug(`Start loading Slash Commands... ("${ CHAT_INPUT_COMMAND_DIR }")`);
 for (const filePath of getFiles(CHAT_INPUT_COMMAND_DIR)) {
   try {
     const command = require(filePath);
     command.load(filePath, commands);
-    // loadAliases AFTER #load(), setting the origin filepath
     command.loadAliases();
-  }
-  catch (err) {
-    logger.syserr(`Error encountered while loading Slash Command (${ CHAT_INPUT_COMMAND_DIR }), are you sure you're exporting an instance of ChatInputCommand?\nCommand: ${ filePath }`);
+  } catch (err) {
+    logger.syserr(`Error loading Slash Command: ${filePath}`);
     console.error(err.stack || err);
   }
 }
-// Binding our User Context Menu commands
+
 logger.debug(`Start loading User Context Menu Commands... ("${ CONTEXT_MENU_COMMAND_DIR }/user")`);
 for (const filePath of getFiles(`${ CONTEXT_MENU_COMMAND_DIR }/user`)) {
   try {
     const command = require(filePath);
     command.load(filePath, contextMenus, 'user-ctx-menu-');
-  }
-  catch (err) {
-    logger.syserr(`Error encountered while loading User Context Menu Command (${ CONTEXT_MENU_COMMAND_DIR }/user), are you sure you're exporting an instance of UserContextCommand?\nCommand: ${ filePath }`);
+  } catch (err) {
+    logger.syserr(`Error loading User Context Menu: ${filePath}`);
     console.error(err.stack || err);
   }
 }
-// Binding our Message Context Menu commands
+
 logger.debug(`Start loading Message Context Menu Commands... ("${ CONTEXT_MENU_COMMAND_DIR }/message")`);
 for (const filePath of getFiles(`${ CONTEXT_MENU_COMMAND_DIR }/message`)) {
   try {
     const command = require(filePath);
     command.load(filePath, contextMenus, 'message-ctx-menu-');
-  }
-  catch (err) {
-    logger.syserr(`Error encountered while loading User Context Menu Command (${ CONTEXT_MENU_COMMAND_DIR }/message), are you sure you're exporting an instance of MessageContextCommand?\nCommand: ${ filePath }`);
+  } catch (err) {
+    logger.syserr(`Error loading Message Context Menu: ${filePath}`);
     console.error(err.stack || err);
   }
 }
-// Binding our Button interactions
-logger.debug(`Start loading Button Commands... ("${ BUTTON_INTERACTION_DIR }")`);
-for (const filePath of getFiles(BUTTON_INTERACTION_DIR)) {
-  try {
-    const command = require(filePath);
-    command.load(filePath, buttons);
+
+// Loading other interactions (buttons, modals, etc.)
+['buttons', 'modals', 'autocomplete', 'select-menus'].forEach(dir => {
+  const dirPath = dir === 'autocomplete' ? AUTO_COMPLETE_INTERACTION_DIR : 
+                  dir === 'select-menus' ? SELECT_MENU_INTERACTION_DIR : 
+                  eval(`${dir.toUpperCase()}_INTERACTION_DIR`);
+  
+  logger.debug(`Start loading ${dir}...`);
+  for (const filePath of getFiles(dirPath)) {
+    try {
+      const command = require(filePath);
+      command.load(filePath, client.container[dir === 'select-menus' ? 'selectMenus' : dir]);
+    } catch (err) {
+      logger.syserr(`Error loading ${dir}: ${filePath}`);
+      console.error(err.stack || err);
+    }
   }
-  catch (err) {
-    logger.syserr(`Error encountered while loading Button Command (${ BUTTON_INTERACTION_DIR }), are you sure you're exporting an instance of ComponentCommand?\nCommand: ${ filePath }`);
-    console.error(err.stack || err);
-  }
-}
-// Binding our Modal interactions
-logger.debug(`Start loading Modal Commands... ("${ MODAL_INTERACTION_DIR }")`);
-for (const filePath of getFiles(MODAL_INTERACTION_DIR)) {
-  try {
-    const command = require(filePath);
-    command.load(filePath, modals);
-  }
-  catch (err) {
-    logger.syserr(`Error encountered while loading Modal Command (${ MODAL_INTERACTION_DIR }), are you sure you're exporting an instance of ComponentCommand?\nCommand: ${ filePath }`);
-    console.error(err.stack || err);
-  }
-}
-// Binding our Autocomplete interactions
-logger.debug(`Start loading Auto Complete Commands... ("${ AUTO_COMPLETE_INTERACTION_DIR }")`);
-for (const filePath of getFiles(AUTO_COMPLETE_INTERACTION_DIR)) {
-  try {
-    const command = require(filePath);
-    command.load(filePath, autoCompletes);
-  }
-  catch (err) {
-    logger.syserr(`Error encountered while loading Auto Complete Command (${ AUTO_COMPLETE_INTERACTION_DIR }), are you sure you're exporting an instance of ComponentCommand?\nCommand: ${ filePath }`);
-    console.error(err.stack || err);
-  }
-}
-// Binding our Select Menu interactions
-logger.debug(`Start loading Select Menu Commands... ("${ SELECT_MENU_INTERACTION_DIR }")`);
-for (const filePath of getFiles(SELECT_MENU_INTERACTION_DIR)) {
-  try {
-    const command = require(filePath);
-    command.load(filePath, selectMenus);
-  }
-  catch (err) {
-    logger.syserr(`Error encountered while loading Select Menu Command (${ SELECT_MENU_INTERACTION_DIR }), are you sure you're exporting an instance of ComponentCommand?\nCommand: ${ filePath }`);
-    console.error(err.stack || err);
-  }
-}
+});
+
 // Refresh InteractionCommand data if requested
 refreshSlashCommandData(client);
+
 // Registering our listeners
 registerListeners();
+
+/**
+ * INTERACTION CREATE - GŁÓWNY HANDLER (naprawia "Aplikacja nie reaguje")
+ */
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isChatInputCommand() && !interaction.isContextMenuCommand()) return;
+
+  try {
+    await handleCommand(interaction);
+  } catch (err) {
+    logger.syserr(`Critical error in interactionCreate for command: ${interaction.commandName}`);
+    console.error(err);
+
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({
+        content: `${require('../../config/emojis.json').error || '❌'} Wystąpił poważny błąd.`,
+        ephemeral: true
+      }).catch(() => {});
+    }
+  }
+});
+
 /**
  * Finished initializing
- * Performance logging and logging in to our client
  */
-// Execution time logging
 logger.success(`Finished initializing after ${ getRuntime(initTimerStart).ms } ms`);
+
 // Require our server index file if requested
 if (USE_API === 'true') require('./server/');
+
 // Exit before initializing listeners in test mode
 if (modeArg && modeArg.endsWith('testing')) process.exit(1);
+
 // Logging in to our client
 client.login(DISCORD_BOT_TOKEN);
 
-// Keep-alive serwer HTTP dla Render Web Service (wymagany, żeby nie zasypiał)
+// Keep-alive for Render
 const express = require('express');
 const app = express();
-
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;   // Render często używa 10000
 
 app.get('/health', (req, res) => {
   res.status(200).send(`Bot żyje! Uptime: ${Math.floor(process.uptime() / 60)} minut`);
