@@ -11,20 +11,22 @@ const execute = async (interaction) => {
   try {
     await interaction.deferReply();
 
-    logger.debug(`[BROADCAST] Wywołano przez ${interaction.user.tag}`);
-
     const { member, options } = interaction;
     const serverCfg = getServerConfigCommandOptionValue(interaction);
     const message = options.getString('message');
 
     if (message.length > 256) {
-      await interaction.editReply({ content: `${emojis.error} ${member}, wiadomość nie może przekraczać 256 znaków.` });
+      await interaction.editReply({ 
+        content: `${emojis.error} ${member}, wiadomość nie może przekraczać 256 znaków.` 
+      });
       return;
     }
 
     const res = await broadcastMessage(serverCfg.CFTOOLS_SERVER_API_ID, message);
     if (res !== true) {
-      await interaction.editReply({ content: `${emojis.error} ${member}, błąd podczas broadcastu (nieprawidłowa odpowiedź API).` });
+      await interaction.editReply({ 
+        content: `${emojis.error} ${member}, błąd podczas wysyłania broadcastu.` 
+      });
       return;
     }
 
@@ -36,10 +38,10 @@ const execute = async (interaction) => {
 
     await interaction.editReply({ embeds: [embed] });
   } catch (error) {
-    logger.syserr(`[BROADCAST] Błąd krytyczny: ${error.message}`);
+    logger.syserr(`[BROADCAST] Błąd: ${error.message}`);
     console.error(error);
-    if (interaction.deferred) {
-      await interaction.editReply({ content: `${emojis.error || '❌'} Wystąpił błąd podczas broadcastu.` });
+    if (interaction.deferred && !interaction.replied) {
+      await interaction.editReply({ content: `${emojis.error || '❌'} Wystąpił nieoczekiwany błąd.` });
     }
   }
 };
@@ -49,7 +51,14 @@ execute.load = (filePath, collection) => {
     .setName('broadcast')
     .setDescription('Wyślij wiadomość do wszystkich graczy na serwerze')
     .setDMPermission(false)
-    .addStringOption(requiredServerConfigCommandOption)
+    .addStringOption(option => {
+      option
+        .setName(requiredServerConfigCommandOption.name)
+        .setDescription(requiredServerConfigCommandOption.description)
+        .setRequired(requiredServerConfigCommandOption.required)
+        .setChoices(...requiredServerConfigCommandOption.choices);
+      return option;
+    })
     .addStringOption(option =>
       option.setName('message')
         .setDescription('Treść wiadomości')
