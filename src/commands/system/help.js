@@ -1,5 +1,10 @@
+# Usuń stary plik (na wszelki wypadek)
+rm -f src/commands/system/help.js
+
+# Utwórz nowy plik z poprawną strukturą
+cat > src/commands/system/help.js << 'EOF'
 /**
- * Komenda /help - W 100% zgodna ze strukturą bota Mirasaki
+ * Komenda /help - W 100% zgodna z loaderem Mirasaki (Richarda Hillebranda)
  * Naprawia "Ładowanie opcji nie powiodło się"
  */
 
@@ -12,33 +17,33 @@ const execute = async (interaction) => {
   try {
     logger.debug(`[HELP] Komenda uruchomiona przez ${interaction.user.tag}`);
 
-    const selectRow = new ActionRowBuilder().addComponents(
+    const row = new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId('help')
         .setPlaceholder('Wybierz kategorię pomocy...')
         .addOptions([
-          { label: 'Wszystkie komendy', value: 'all', description: 'Lista wszystkich komend', emoji: '📋' },
-          { label: 'Administracja',     value: 'admin',     description: 'Komendy dla administratorów', emoji: '🔧' },
-          { label: 'Moderacja',         value: 'moderator', description: 'Komendy dla moderatorów', emoji: '🛡️' },
-          { label: 'DayZ / Serwer',     value: 'dayz',      description: 'Komendy związane z serwerem', emoji: '🎮' },
-          { label: 'Teleporty',         value: 'teleport',  description: 'Lokacje teleportacji', emoji: '📍' }
+          { label: 'Wszystkie komendy', value: 'all',     description: 'Lista wszystkich komend', emoji: '📋' },
+          { label: 'Administracja',     value: 'admin',   description: 'Komendy administratorskie', emoji: '🔧' },
+          { label: 'Moderacja',         value: 'moderator', description: 'Komendy moderatorskie', emoji: '🛡️' },
+          { label: 'DayZ / Serwer',     value: 'dayz',    description: 'Komendy serwerowe DayZ', emoji: '🎮' },
+          { label: 'Teleporty',         value: 'teleport', description: 'Dostępne teleporty', emoji: '📍' }
         ])
     );
 
     const embed = {
       color: 0x00ff88,
       title: '📚 Pomoc — cftools-discord-bot',
-      description: 'Wybierz kategorię z poniższego menu:',
+      description: 'Wybierz kategorię z menu poniżej:',
       timestamp: new Date(),
       footer: { text: `Wersja ${pkg.version} • Husaria` }
     };
 
     await interaction.reply({
       embeds: [embed],
-      components: [selectRow]
+      components: [row]
     });
 
-    logger.debug(`[HELP] Odpowiedź wysłana pomyślnie`);
+    logger.debug(`[HELP] Komenda wykonana pomyślnie`);
 
   } catch (error) {
     logger.syserr(`[HELP] Błąd krytyczny: ${error.message}`);
@@ -53,7 +58,7 @@ const execute = async (interaction) => {
   }
 };
 
-// ==================== WYMAGANE METODY DLA TWOJEGO LOADERA ====================
+// ==================== KLUCZOWE METODY DLA LOADERA ====================
 execute.load = (filePath, collection) => {
   const data = new SlashCommandBuilder()
     .setName('help')
@@ -69,8 +74,8 @@ execute.load = (filePath, collection) => {
 };
 
 execute.loadAliases = () => {
-  // Komenda nie używa aliasów
   return [];
 };
 
 module.exports = execute;
+EOF
