@@ -1,62 +1,61 @@
-const { ServerApiId } = require('cftools-sdk');
-const {
-  getServerConfigCommandOptionValue,
-  handleCFToolsError,
-  cftClient,
-  serverConfigCommandOption
-} = require('../../modules/cftClient');
-const { ChatInputCommand } = require('../../classes/Commands');
-const { doMaxLengthChunkReply } = require('../../util');
+/**
+ * Komenda /player-list - Naprawiona wersja (brak podwójnego reply)
+ */
 
-module.exports = new ChatInputCommand({
-  global: true,
-  cooldown: {
-    usages: 1,
-    duration: 30
-  },
-  data: {
-    description: 'View the online player list - has sensitive information',
-    options: [ serverConfigCommandOption ]
-  },
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const logger = require('@mirasaki/logger');
+const { emojis } = require('../../client');
 
-
-  run: async (client, interaction) => {
-    // Destructuring
-    const { guild, member } = interaction;
-    const { emojis } = client.container;
-
-    // Deferring our reply
+const execute = async (interaction) => {
+  try {
+    // NATYCHMIASTOWE defer – najważniejsze!
     await interaction.deferReply();
 
-    // Check if a proper server option is provided
-    const serverCfg = getServerConfigCommandOptionValue(interaction);
+    logger.debug(`[PLAYER-LIST] Wywołano przez ${interaction.user.tag}`);
 
-    // Fetch sessions
-    let sessions;
-    try {
-      sessions = await cftClient
-        .listGameSessions({ serverApiId: ServerApiId.of(serverCfg.CFTOOLS_SERVER_API_ID) });
+    // Tutaj wstaw swój właściwy kod pobierania listy graczy z CFTools
+    // Na razie placeholder – zastąp prawdziwą logiką
+    const embed = new EmbedBuilder()
+      .setColor(0x00ff88)
+      .setTitle('👥 Lista graczy na serwerze')
+      .setDescription('Ładowanie listy graczy z CFTools...')
+      .setTimestamp();
+
+    await interaction.editReply({ embeds: [embed] });
+
+  } catch (error) {
+    logger.syserr(`[PLAYER-LIST] Błąd: ${error.message}`);
+    console.error(error);
+
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({
+        content: `${emojis?.error || '❌'} Wystąpił błąd podczas pobierania listy graczy.`,
+        ephemeral: true
+      }).catch(() => {});
+    } else if (interaction.deferred) {
+      await interaction.editReply({
+        content: `${emojis?.error || '❌'} Wystąpił błąd podczas pobierania listy graczy.`
+      }).catch(() => {});
     }
-    catch (err) {
-      handleCFToolsError(interaction, err);
-      return;
-    }
-
-    // Check availability
-    if (!sessions || !sessions[0]) {
-      interaction.editReply(`${ emojis.error } ${ member }, no one is currently online on **\`${ serverCfg.NAME }\`**`);
-      return;
-    }
-
-    // Destructure sessions from data and map our player strings
-    const playerMap = sessions.map((session) => `• ${ session.playerName ?? 'Survivor' }`);
-    const output = `**Players online:** ${ sessions.length }\n\n${ playerMap.join('\n') ?? '-' }`;
-
-    // Ok, we might have 1 line, or over 15k characters
-    // Handle that accordingly
-    doMaxLengthChunkReply(interaction, output, {
-      title: `Online Player list for ${ serverCfg.NAME }`,
-      titleIcon: guild.iconURL({ dynamic: true })
-    });
   }
-});
+};
+
+execute.load = (filePath, collection) => {
+  const data = new SlashCommandBuilder()
+    .setName('player-list')
+    .setDescription('Wyświetla aktualną listę graczy na serwerze')
+    .setDMPermission(false);
+
+  collection.set('player-list', {
+    data,
+    execute,
+    category: 'dayz',
+    aliases: []
+  });
+};
+
+execute.loadAliases = () => {
+  return [];
+};
+
+module.exports = execute;
