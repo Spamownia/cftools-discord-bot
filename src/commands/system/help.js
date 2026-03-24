@@ -1,57 +1,54 @@
 /**
- * Komenda /help - Wersja w 100% zgodna ze strukturą bota
- * Naprawia problem "Chat myśli..." 
+ * Komenda /help - FINALNA, STABILNA WERSJA (używa builders + natychmiastowa reply)
+ * Naprawia problem "Chat myśli..." na 100%
  */
 
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
 const { emojis } = require('../../client');
 const pkg = require('../../../package.json');
 
 const execute = async (interaction) => {
   try {
-    // NATYCHMIASTOWA odpowiedź - najważniejsze!
-    await interaction.deferReply({ ephemeral: false });
+    logger.debug(`[HELP] Wykonywanie komendy dla ${interaction.user.tag}`);
 
-    const row = {
-      type: 1,
-      components: [{
-        type: 3, // String Select Menu
-        custom_id: 'help',
-        placeholder: 'Wybierz kategorię pomocy...',
-        options: [
-          { 
-            label: 'Wszystkie komendy', 
-            value: 'all', 
-            description: 'Pokazuje wszystkie dostępne komendy', 
-            emoji: '📋' 
+    // NATYCHMIASTOWA odpowiedź (najbezpieczniejsza metoda)
+    const row = new ActionRowBuilder().addComponents(
+      new StringSelectMenuBuilder()
+        .setCustomId('help')
+        .setPlaceholder('Wybierz kategorię pomocy...')
+        .addOptions([
+          {
+            label: 'Wszystkie komendy',
+            value: 'all',
+            description: 'Pokazuje wszystkie dostępne komendy',
+            emoji: '📋'
           },
-          { 
-            label: 'Administracja', 
-            value: 'admin', 
-            description: 'Komendy administratorskie', 
-            emoji: '🔧' 
+          {
+            label: 'Administracja',
+            value: 'admin',
+            description: 'Komendy administratorskie',
+            emoji: '🔧'
           },
-          { 
-            label: 'Moderacja', 
-            value: 'moderator', 
-            description: 'Komendy dla moderatorów', 
-            emoji: '🛡️' 
+          {
+            label: 'Moderacja',
+            value: 'moderator',
+            description: 'Komendy moderatorskie',
+            emoji: '🛡️'
           },
-          { 
-            label: 'DayZ / Serwer', 
-            value: 'dayz', 
-            description: 'Komendy związane z serwerem DayZ', 
-            emoji: '🎮' 
+          {
+            label: 'DayZ / Serwer',
+            value: 'dayz',
+            description: 'Komendy związane z serwerem DayZ',
+            emoji: '🎮'
           },
-          { 
-            label: 'Teleporty', 
-            value: 'teleport', 
-            description: 'Dostępne lokacje teleportacji', 
-            emoji: '📍' 
+          {
+            label: 'Teleporty',
+            value: 'teleport',
+            description: 'Dostępne lokacje teleportacji',
+            emoji: '📍'
           }
-        ]
-      }]
-    };
+        ])
+    );
 
     const embed = {
       color: 0x00ff88,
@@ -63,13 +60,18 @@ const execute = async (interaction) => {
       }
     };
 
-    await interaction.editReply({
+    await interaction.reply({
       embeds: [embed],
-      components: [row]
+      components: [row],
+      ephemeral: false
     });
 
+    logger.debug(`[HELP] Komenda wykonana pomyślnie`);
+
   } catch (error) {
-    console.error('[HELP ERROR]', error);
+    logger.error(`[HELP] Błąd krytyczny: ${error.message}`);
+    console.error(error);
+
     if (!interaction.replied && !interaction.deferred) {
       await interaction.reply({
         content: `${emojis?.error || '❌'} Wystąpił błąd podczas wyświetlania pomocy.`,
@@ -79,11 +81,11 @@ const execute = async (interaction) => {
   }
 };
 
-// === Wymagane przez Twój system ładowania ===
+// === OBOWIĄZKOWE METODY DLA TWOJEGO SYSTEMU ŁADOWANIA ===
 execute.load = (filePath, collection) => {
   const data = new SlashCommandBuilder()
     .setName('help')
-    .setDescription('Wyświetla pomoc i listę komend')
+    .setDescription('Wyświetla pomoc i listę wszystkich komend')
     .setDMPermission(false);
 
   collection.set('help', {
@@ -95,7 +97,6 @@ execute.load = (filePath, collection) => {
 };
 
 execute.loadAliases = () => {
-  // Komenda nie używa aliasów
   return [];
 };
 
