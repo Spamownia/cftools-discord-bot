@@ -5,37 +5,13 @@
  * @module Handler/Commands
  */
 
-/**
- * Discord API command data
- * @external DiscordAPIApplicationCommand
- * @see {@link https://discord-api-types.dev/api/discord-api-types-v10/interface/APIApplicationCommand}
- */
-
-/**
- * The command interaction received
- * @external DiscordCommandInteraction
- * @see {@link https://discord.js.org/#/docs/discord.js/main/class/CommandInteraction}
- */
-
-/**
- * The `discord.js` ActionRowBuilder
- * @external DiscordActionRowBuilder
- * @see {@link https://discord.js.org/#/docs/discord.js/main/class/ActionRowBuilder}
- */
-
-/**
- * The `discord.js` EmbedBuilder
- * @external DiscordEmbedBuilder
- * @see {@link https://discord.js.org/#/docs/discord.js/main/class/EmbedBuilder}
- */
-
 // Require dependencies
 const { REST } = require('@discordjs/rest');
 const { Routes } = require('discord-api-types/v10');
 
 // Local imports
 const {
-  titleCase, splitCamelCaseStr, colorResolver
+  titleCase
 } = require('../util');
 const emojis = require('../../config/emojis.json');
 
@@ -44,23 +20,15 @@ const logger = require('@mirasaki/logger');
 const chalk = require('chalk');
 const { hasChannelPerms, resolvePermissionArray } = require('./permissions');
 const {
-  commands, contextMenus, colors
+  commands, contextMenus
 } = require('../client');
 const {
-  SELECT_MENU_MAX_OPTIONS,
-  HELP_SELECT_MENU_SEE_MORE_OPTIONS,
-  HELP_COMMAND_SELECT_MENU,
   MS_IN_ONE_SECOND
 } = require('../constants');
-const {
-  ActionRowBuilder,
-  StringSelectMenuBuilder,
-  PermissionsBitField
-} = require('discord.js');
+
 const {
   UserContextCommand,
-  MessageContextCommand,
-  ChatInputCommand
+  MessageContextCommand
 } = require('../classes/Commands');
 
 // Destructure from process.env
@@ -89,7 +57,7 @@ const clearApplicationCommandData = () => {
       Routes.applicationGuildCommands(CLIENT_ID, TEST_SERVER_GUILD_ID),
       { body: [] }
     ).catch((err) => {
-      logger.syserr('Error while clearing GuildCommands in test server (probably invalid TEST_SERVER_GUILD_ID)');
+      logger.syserr('Error while clearing GuildCommands in test server');
       logger.syserr(err);
     });
   } else {
@@ -181,7 +149,6 @@ const registerGlobalCommands = async (client) => {
   ).catch((err) => {
     if (err.status === 400) {
       logger.syserr(`Invalid Form Body: ${err.message}`);
-      console.log(err.rawError?.errors);
     } else {
       logger.syserr(err);
     }
@@ -244,7 +211,6 @@ const refreshSlashCommandData = (client) => {
 };
 
 // ==================== COOLDOWN SYSTEM ====================
-
 const ThrottleMap = new Map();
 
 const getThrottleId = (cooldown, cmdName, interaction) => {
@@ -265,7 +231,6 @@ const getThrottleId = (cooldown, cmdName, interaction) => {
 
 const throttleCommand = (clientCmd, interaction) => {
   const { data, cooldown } = clientCmd;
-  const debugStr = chalk.red('[Cmd Throttle]');
   const activeCommandName = clientCmd.isAlias ? clientCmd.aliasFor : data.name;
 
   if (cooldown === false) return false;
@@ -294,7 +259,6 @@ const throttleCommand = (clientCmd, interaction) => {
 };
 
 // ==================== COMMAND EXECUTION ====================
-
 const isUserComponentCommand = (clientCmd, interaction) => (
   interaction.isButton() ||
   interaction.isStringSelectMenu() ||
@@ -371,7 +335,7 @@ const isAppropriateCommandFilter = (member, command) => (
 );
 
 /**
- * Główna funkcja obsługująca komendy
+ * Główna funkcja obsługująca komendy - POPRAWIONA WERSJA
  */
 const handleCommand = async (interaction) => {
   const { client } = interaction;
@@ -392,37 +356,47 @@ const handleCommand = async (interaction) => {
 
   if (!clientCmd) {
     logger.syserr(`Command "${commandName}" not found`);
-    return interaction.reply({ content: `${emojis.error} Command not found.`, ephemeral: true });
+    return interaction.reply({ content: `${emojis?.error || '❌'} Command not found.`, ephemeral: true }).catch(() => {});
+  }
+
+  // === KLUCZOWA POPRAWKA - deferujemy od razu ===
+  if (!interaction.replied && !interaction.deferred) {
+    await interaction.deferReply().catch(() => {});
   }
 
   if (!checkCommandCanExecute(client, interaction, clientCmd)) return;
 
   const throttleResult = throttleCommand(clientCmd, interaction);
   if (throttleResult !== false) {
-    return interaction.reply({ content: throttleResult, ephemeral: true });
+    return interaction.editReply({ content: throttleResult }).catch(() => {});
   }
 
   try {
-    await clientCmd.execute(interaction);
+    // Obsługa zarówno .execute() jak i starego .run(client, interaction)
+    if (typeof clientCmd.execute === 'function') {
+      await clientCmd.execute(interaction);
+    } 
+    else if (typeof clientCmd.run === 'function') {
+      await clientCmd.run(client, interaction);
+    } 
+    else {
+      throw new Error(`Command ${commandName} has neither execute() nor run() method`);
+    }
   } catch (error) {
     logger.syserr(`Error executing command: ${commandName}`);
     console.error(error);
 
-    const reply = {
-      content: `${emojis.error} There was an error while executing this command.`,
-      ephemeral: true
-    };
+    const errorMsg = `${emojis?.error || '❌'} There was an error while executing this command.`;
 
-    if (interaction.replied || interaction.deferred) {
-      await interaction.followUp(reply);
-    } else {
-      await interaction.reply(reply);
+    try {
+      await interaction.editReply({ content: errorMsg });
+    } catch (e) {
+      console.error('Failed to send error message', e);
     }
   }
 };
 
 // ==================== EXPORTS ====================
-
 module.exports = {
   clearApplicationCommandData,
   refreshSlashCommandData,
