@@ -1,65 +1,65 @@
-const { ApplicationCommandOptionType } = require('discord.js');
-const { ChatInputCommand } = require('../../classes/Commands');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const logger = require('@mirasaki/logger');
+const { emojis } = require('../../client');
 const {
   requiredServerConfigCommandOption,
-  requiredPlayerSessionOption,
   getServerConfigCommandOptionValue,
   getPlayerSessionOptionValue,
-  messageSurvivor
+  sendDirectMessage
 } = require('../../modules/cftClient');
 
-module.exports = new ChatInputCommand({
-  permLevel: 'Administrator',
-  global: true,
-  data: {
-    description: 'Send a private message to an online survivor',
-    options: [
-      requiredServerConfigCommandOption,
-      requiredPlayerSessionOption,
-      {
-        type: ApplicationCommandOptionType.String,
-        name: 'message',
-        description: 'Message to send to specified player',
-        required: true,
-        min_length: 3,
-        max_length: 256
-      }
-    ]
-  },
-
-  run: async (client, interaction) => {
-    // Destructuring
-    const { member, options } = interaction;
-    const { emojis } = client.container;
-
-    // Deferring our reply
+const execute = async (interaction) => {
+  try {
     await interaction.deferReply();
-
-    // Resolve options
     const serverCfg = getServerConfigCommandOptionValue(interaction);
-    const session = await getPlayerSessionOptionValue(interaction);
-    const message = options.getString('message');
+    const player = getPlayerSessionOptionValue(interaction);
+    const message = interaction.options.getString('message');
 
-    // Check session, might have logged out
-    if (!session) {
-      interaction.editReply(`${ emojis.error } ${ member }, can't resolve provided player/session, player most likely logged out - this command has been cancelled`);
-      return;
+    await sendDirectMessage(serverCfg.CFTOOLS_SERVER_API_ID, player.id, message);
+
+    const embed = new EmbedBuilder()
+      .setColor(0x00ff88)
+      .setTitle('📨 Wiadomość wysłana')
+      .setDescription(`Do: **${player.name}**\n\`\`\`${message}\`\`\``)
+      .setFooter({ text: `Serwer: ${serverCfg.NAME}` });
+
+    await interaction.editReply({ embeds: [embed] });
+  } catch (error) {
+    logger.syserr(`[DM-SURVIVOR] Błąd: ${error.message}`);
+    console.error(error);
+    if (interaction.deferred && !interaction.replied) {
+      await interaction.editReply({ content: `${emojis.error || '❌'} Nie udało się wysłać wiadomości.` });
     }
-
-    // Checking message length
-    if (message.length > 256) {
-      interaction.editReply({ content: `${ emojis.error } ${ member }, message content can't be over \`256\` characters long - this command has been cancelled` });
-      return;
-    }
-
-    // Sending message to survivor
-    const res = await messageSurvivor(serverCfg.CFTOOLS_SERVER_API_ID, session.id, message);
-    if (res !== true) {
-      interaction.editReply({ content: `${ emojis.error } ${ member }, invalid response code - message might not have been DM'ed to **\`${ session.playerName }\`**` });
-      return;
-    }
-
-    // User feedback on success
-    interaction.editReply({ content: `${ emojis.success } ${ member }, message delivered to **\`${ session.playerName }\`**.\n\n\`\`\`${ message }\`\`\`` });
   }
-});
+};
+
+execute.load = (filePath, collection) => {
+  const data = new SlashCommandBuilder()
+    .setName('dm-survivor')
+    .setDescription('Wyślij prywatną wiadomość do gracza')
+    .setDMPermission(false)
+    .addStringOption(option => {
+      option
+        .setName(requiredServerConfigCommandOption.name)
+        .setDescription(requiredServerConfigCommandOption.description)
+        .setRequired(requiredServerConfigCommandOption.required)
+        .setChoices(...requiredServerConfigCommandOption.choices);
+      return option;
+    })
+    .addStringOption(option =>
+      option.setName('player')
+        .setDescription('Nazwa gracza lub CFID')
+        .setRequired(true)
+        .setAutocomplete(true)
+    )
+    .addStringOption(option =>
+      option.setName('message')
+        .setDescription('Treść wiadomości')
+        .setRequired(true)
+    );
+
+  collection.set('dm-survivor', { data, execute, category: 'admin', aliases: [] });
+};
+
+execute.loadAliases = () => [];
+module.exports = execute;
