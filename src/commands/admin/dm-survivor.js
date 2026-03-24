@@ -5,21 +5,21 @@ const {
   requiredServerConfigCommandOption,
   getServerConfigCommandOptionValue,
   getPlayerSessionOptionValue,
-  sendDirectMessage
+  messageSurvivor   // lub sendDirectMessage – użyj tej, która jest w Twoim cftClient
 } = require('../../modules/cftClient');
 
 const execute = async (interaction) => {
   try {
     await interaction.deferReply();
     const serverCfg = getServerConfigCommandOptionValue(interaction);
-    const player = getPlayerSessionOptionValue(interaction);
+    const player = await getPlayerSessionOptionValue(interaction);
     const message = interaction.options.getString('message');
 
-    await sendDirectMessage(serverCfg.CFTOOLS_SERVER_API_ID, player.id, message);
+    await messageSurvivor(serverCfg.CFTOOLS_SERVER_API_ID, player.id, message);
 
     const embed = new EmbedBuilder()
       .setColor(0x00ff88)
-      .setTitle('📨 Wiadomość wysłana')
+      .setTitle('📨 DM wysłane')
       .setDescription(`Do: **${player.name}**\n\`\`\`${message}\`\`\``)
       .setFooter({ text: `Serwer: ${serverCfg.NAME}` });
 
@@ -28,7 +28,7 @@ const execute = async (interaction) => {
     logger.syserr(`[DM-SURVIVOR] Błąd: ${error.message}`);
     console.error(error);
     if (interaction.deferred && !interaction.replied) {
-      await interaction.editReply({ content: `${emojis.error || '❌'} Nie udało się wysłać wiadomości.` });
+      await interaction.editReply({ content: `${emojis.error || '❌'} Nie udało się wysłać DM.` });
     }
   }
 };
@@ -36,7 +36,7 @@ const execute = async (interaction) => {
 execute.load = (filePath, collection) => {
   const data = new SlashCommandBuilder()
     .setName('dm-survivor')
-    .setDescription('Wyślij prywatną wiadomość do gracza')
+    .setDescription('Wyślij DM do gracza')
     .setDMPermission(false)
     .addStringOption(option => {
       option
@@ -48,7 +48,7 @@ execute.load = (filePath, collection) => {
     })
     .addStringOption(option =>
       option.setName('player')
-        .setDescription('Nazwa gracza lub CFID')
+        .setDescription('Gracz')
         .setRequired(true)
         .setAutocomplete(true)
     )
