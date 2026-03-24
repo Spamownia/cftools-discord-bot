@@ -1,63 +1,49 @@
-const { ApplicationCommandOptionType } = require('discord.js');
-const { ChatInputCommand } = require('../../classes/Commands');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const logger = require('@mirasaki/logger');
+const { emojis } = require('../../client');
 const {
   requiredServerConfigCommandOption,
   getServerConfigCommandOptionValue,
-  postGameLabsAction,
-  broadcastMessage
+  changeGameWeather
 } = require('../../modules/cftClient');
 
-module.exports = new ChatInputCommand({
-  permLevel: 'Administrator',
-  global: true,
-  data: {
-    description: 'Change the current in-game weather to by clear & sunny',
-    options: [
-      requiredServerConfigCommandOption,
-      {
-        name: 'notify-players',
-        description: 'Send a global notification to the players, default true',
-        type: ApplicationCommandOptionType.Boolean,
-        required: false
-      }
-    ]
-  },
-
-  run: async (client, interaction) => {
-    // Destructuring
-    const { member, options } = interaction;
-    const { emojis } = client.container;
-    const notifyPlayers = options.getBoolean('notify-players') ?? true;
-
-    // Deferring our reply
+const execute = async (interaction) => {
+  try {
     await interaction.deferReply();
-
-    // Resolve options
     const serverCfg = getServerConfigCommandOptionValue(interaction);
+    await changeGameWeather(serverCfg.CFTOOLS_SERVER_API_ID, 'clear');
 
-    // Performing request
-    const res = await postGameLabsAction(
-      serverCfg.CFTOOLS_SERVER_API_ID,
-      'CFCloud_WorldWeatherSunny',
-      'world',
-      null,
-      {}
-    );
+    const embed = new EmbedBuilder()
+      .setColor(0xffff00)
+      .setTitle('☀️ Pogoda ustawiona na Sunny')
+      .setFooter({ text: `Serwer: ${serverCfg.NAME}` });
 
-    if (res !== true) {
-      interaction.editReply({ content: `${ emojis.error } ${ member }, invalid response code - weather might not have been updated to clear/sunny` });
-      return;
+    await interaction.editReply({ embeds: [embed] });
+  } catch (error) {
+    logger.syserr(`[SET-WEATHER-SUNNY] Błąd: ${error.message}`);
+    console.error(error);
+    if (interaction.deferred && !interaction.replied) {
+      await interaction.editReply({ content: `${emojis.error || '❌'} Nie udało się ustawić pogody.` });
     }
-
-    // Notify player
-    if (notifyPlayers) {
-      await broadcastMessage(
-        serverCfg.CFTOOLS_SERVER_API_ID,
-        'The weather has been changed to clear/sunny by an administrator (this might take a while to take effect)'
-      );
-    }
-
-    // User feedback on success
-    interaction.editReply({ content: `${ emojis.success } ${ member }, weather has been changed to **\`sunny/clear\`**` });
   }
-});
+};
+
+execute.load = (filePath, collection) => {
+  const data = new SlashCommandBuilder()
+    .setName('set-weather-sunny')
+    .setDescription('Ustawia pogodę na słoneczną')
+    .setDMPermission(false)
+    .addStringOption(option => {
+      option
+        .setName(requiredServerConfigCommandOption.name)
+        .setDescription(requiredServerConfigCommandOption.description)
+        .setRequired(requiredServerConfigCommandOption.required)
+        .setChoices(...requiredServerConfigCommandOption.choices);
+      return option;
+    });
+
+  collection.set('set-weather-sunny', { data, execute, category: 'admin', aliases: [] });
+};
+
+execute.loadAliases = () => [];
+module.exports = execute;
