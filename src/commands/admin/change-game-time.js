@@ -4,7 +4,7 @@ const { emojis } = require('../../client');
 const {
   requiredServerConfigCommandOption,
   getServerConfigCommandOptionValue,
-  changeGameTime
+  changeGameTime   // zakładam, że funkcja istnieje w cftClient
 } = require('../../modules/cftClient');
 
 const execute = async (interaction) => {
@@ -17,7 +17,7 @@ const execute = async (interaction) => {
 
     const embed = new EmbedBuilder()
       .setColor(0x00ff88)
-      .setTitle('⏰ Czas w grze zmieniony')
+      .setTitle('⏰ Czas zmieniony')
       .setDescription(`Nowy czas: **${time}**`)
       .setFooter({ text: `Serwer: ${serverCfg.NAME}` });
 
@@ -34,7 +34,7 @@ const execute = async (interaction) => {
 execute.load = (filePath, collection) => {
   const data = new SlashCommandBuilder()
     .setName('change-game-time')
-    .setDescription('Zmienia czas w grze (np. 12:00)')
+    .setDescription('Zmienia czas w grze')
     .setDMPermission(false)
     .addStringOption(option => {
       option
@@ -46,7 +46,7 @@ execute.load = (filePath, collection) => {
     })
     .addStringOption(option =>
       option.setName('time')
-        .setDescription('Nowy czas (format HH:MM)')
+        .setDescription('Nowy czas (HH:MM)')
         .setRequired(true)
     );
 
