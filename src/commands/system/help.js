@@ -1,6 +1,5 @@
 /**
- * Komenda /help - Czysta, finalna wersja
- * Naprawia "Ładowanie opcji nie powiodło się"
+ * Komenda /help - Czysta, stabilna wersja
  */
 
 const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
@@ -21,7 +20,7 @@ const execute = async (interaction) => {
           { label: 'Administracja',     value: 'admin',   description: 'Komendy administratorskie', emoji: '🔧' },
           { label: 'Moderacja',         value: 'moderator', description: 'Komendy moderatorskie', emoji: '🛡️' },
           { label: 'DayZ / Serwer',     value: 'dayz',    description: 'Komendy serwerowe DayZ', emoji: '🎮' },
-          { label: 'Teleporty',         value: 'teleport', description: 'Dostępne lokacje teleportacji', emoji: '📍' }
+          { label: 'Teleporty',         value: 'teleport', description: 'Dostępne teleporty', emoji: '📍' }
         ])
     );
 
@@ -38,10 +37,8 @@ const execute = async (interaction) => {
       components: [row]
     });
 
-    logger.debug(`[HELP] Komenda wykonana pomyślnie`);
-
   } catch (error) {
-    logger.syserr(`[HELP] Błąd krytyczny: ${error.message}`);
+    logger.syserr(`[HELP] Błąd: ${error.message}`);
     console.error(error);
 
     if (!interaction.replied && !interaction.deferred) {
@@ -53,23 +50,15 @@ const execute = async (interaction) => {
   }
 };
 
-// ==================== METODY WYMAGANE PRZEZ LOADER ====================
 execute.load = (filePath, collection) => {
   const data = new SlashCommandBuilder()
     .setName('help')
     .setDescription('Wyświetla pomoc i listę wszystkich komend')
     .setDMPermission(false);
 
-  collection.set('help', {
-    data,
-    execute,
-    category: 'system',
-    aliases: []
-  });
+  collection.set('help', { data, execute, category: 'system', aliases: [] });
 };
 
-execute.loadAliases = () => {
-  return [];
-};
+execute.loadAliases = () => [];
 
 module.exports = execute;
