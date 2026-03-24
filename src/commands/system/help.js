@@ -1,5 +1,5 @@
 /**
- * Komenda /help - Czysta, stabilna wersja
+ * Komenda /help - Czysta wersja
  */
 
 const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
@@ -16,11 +16,11 @@ const execute = async (interaction) => {
         .setCustomId('help')
         .setPlaceholder('Wybierz kategorię pomocy...')
         .addOptions([
-          { label: 'Wszystkie komendy', value: 'all',     description: 'Lista wszystkich komend', emoji: '📋' },
-          { label: 'Administracja',     value: 'admin',   description: 'Komendy administratorskie', emoji: '🔧' },
-          { label: 'Moderacja',         value: 'moderator', description: 'Komendy moderatorskie', emoji: '🛡️' },
-          { label: 'DayZ / Serwer',     value: 'dayz',    description: 'Komendy serwerowe DayZ', emoji: '🎮' },
-          { label: 'Teleporty',         value: 'teleport', description: 'Dostępne teleporty', emoji: '📍' }
+          { label: 'Wszystkie komendy', value: 'all', description: 'Lista wszystkich komend', emoji: '📋' },
+          { label: 'Administracja', value: 'admin', description: 'Komendy administratorskie', emoji: '🔧' },
+          { label: 'Moderacja', value: 'moderator', description: 'Komendy moderatorskie', emoji: '🛡️' },
+          { label: 'DayZ / Serwer', value: 'dayz', description: 'Komendy serwerowe', emoji: '🎮' },
+          { label: 'Teleporty', value: 'teleport', description: 'Lokacje teleportacji', emoji: '📍' }
         ])
     );
 
@@ -56,7 +56,12 @@ execute.load = (filePath, collection) => {
     .setDescription('Wyświetla pomoc i listę wszystkich komend')
     .setDMPermission(false);
 
-  collection.set('help', { data, execute, category: 'system', aliases: [] });
+  collection.set('help', {
+    data,
+    execute,
+    category: 'system',
+    aliases: []
+  });
 };
 
 execute.loadAliases = () => [];
