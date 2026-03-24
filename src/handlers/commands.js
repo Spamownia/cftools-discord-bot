@@ -1,5 +1,5 @@
 /**
- * Command Handler - Final fixed version
+ * Command Handler - Poprawiona wersja (final fix)
  */
 
 const { REST } = require('@discordjs/rest');
@@ -30,10 +30,12 @@ const rest = new REST({ version: '10' }).setToken(DISCORD_BOT_TOKEN);
 const clearApplicationCommandData = () => {
   logger.info('Clearing ApplicationCommand API data');
   rest.put(Routes.applicationCommands(CLIENT_ID), { body: [] });
+
   if (TEST_SERVER_GUILD_ID) {
     rest.put(Routes.applicationGuildCommands(CLIENT_ID, TEST_SERVER_GUILD_ID), { body: [] })
       .catch(err => logger.syserr(err));
   }
+
   logger.success('Successfully reset all Slash Commands.');
   process.exit(1);
 };
@@ -73,6 +75,7 @@ const registerTestServerCommands = async (client) => {
 
 const refreshSlashCommandData = (client) => {
   if (REFRESH_SLASH_COMMAND_API_DATA !== 'true') return;
+
   logger.startLog('Refreshing Application (/) Commands');
   registerGlobalCommands(client);
   if (TEST_SERVER_GUILD_ID) registerTestServerCommands(client);
@@ -106,19 +109,34 @@ const throttleCommand = (clientCmd, interaction) => {
   return false;
 };
 
-/* ====================== MAIN HANDLER - FIXED ====================== */
+/* ====================== MAIN HANDLER ====================== */
 const handleCommand = async (interaction) => {
   const { client } = interaction;
   let clientCmd = commands.get(interaction.commandName) || contextMenus.get(interaction.commandName);
 
-  if (!clientCmd) {
-    return interaction.reply({ content: `${emojis.error} Command not found.`, ephemeral: true }).catch(() => {});
+  // Alias support
+  if (!clientCmd && commands.hasAlias?.(interaction.commandName)) {
+    const aliasFor = commands.getAlias(interaction.commandName);
+    clientCmd = commands.get(aliasFor);
+    if (clientCmd) {
+      clientCmd.isAlias = true;
+      clientCmd.aliasFor = interaction.commandName;
+    }
   }
 
-  // DEFER OD RAZU - to rozwiązuje "Aplikacja nie reaguje"
-  if (!interaction.replied && !interaction.deferred) {
-    await interaction.deferReply().catch(() => {});
+  if (!clientCmd) {
+    logger.syserr(`Command "${interaction.commandName}" not found`);
+    return interaction.reply({ 
+      content: `${emojis?.error || '❌'} Command not found.`, 
+      ephemeral: true 
+    }).catch(() => {});
   }
+
+  // === KLUCZOWA POPRAWKA: deferujemy OD RAZU ===
+  if (!interaction.replied && !interaction.deferred) {
+    await interaction.deferReply().catch(console.error);
+  }
+  // ==============================================
 
   // Sprawdzenie uprawnień
   if (!checkCommandCanExecute(client, interaction, clientCmd)) return;
@@ -130,19 +148,22 @@ const handleCommand = async (interaction) => {
   }
 
   try {
+    // Obsługuje zarówno nowe komendy (.execute) jak i stare (.run)
     if (typeof clientCmd.execute === 'function') {
       await clientCmd.execute(interaction);
-    } else if (typeof clientCmd.run === 'function') {
-      await clientCmd.run(client, interaction);   // stare komendy z tego repo
-    } else {
-      throw new Error(`No execute() or run() method in command: ${interaction.commandName}`);
+    } 
+    else if (typeof clientCmd.run === 'function') {
+      await clientCmd.run(client, interaction);
+    } 
+    else {
+      throw new Error(`Command ${interaction.commandName} has neither execute() nor run() method`);
     }
   } catch (error) {
-    logger.syserr(`Error in command ${interaction.commandName}`);
+    logger.syserr(`Error executing command: ${interaction.commandName}`);
     console.error(error);
 
     await interaction.editReply({
-      content: `${emojis.error} Wystąpił błąd podczas wykonywania komendy.`
+      content: `${emojis?.error || '❌'} Wystąpił błąd podczas wykonywania komendy.`
     }).catch(() => {});
   }
 };
@@ -170,7 +191,7 @@ const checkCommandCanExecute = (client, interaction, clientCmd) => {
   return true;
 };
 
-const isAppropriateCommandFilter = (member, command) => true; // uproszczone
+const isAppropriateCommandFilter = () => true;
 
 // Exports
 module.exports = {
@@ -178,5 +199,5 @@ module.exports = {
   refreshSlashCommandData,
   handleCommand,
   isAppropriateCommandFilter,
-  sortCommandsByCategory: () => [] // niepotrzebne teraz
+  sortCommandsByCategory: () => []
 };
