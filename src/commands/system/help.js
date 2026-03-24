@@ -1,11 +1,10 @@
-# Usuń stary plik (na wszelki wypadek)
+# Usuń uszkodzony plik
 rm -f src/commands/system/help.js
 
-# Utwórz nowy plik z poprawną strukturą
-cat > src/commands/system/help.js << 'EOF'
+# Wstaw CZysty, poprawny plik help.js
+cat > src/commands/system/help.js << 'EOT'
 /**
- * Komenda /help - W 100% zgodna z loaderem Mirasaki (Richarda Hillebranda)
- * Naprawia "Ładowanie opcji nie powiodło się"
+ * Komenda /help - Poprawna wersja zgodna z loaderem bota
  */
 
 const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
@@ -58,11 +57,10 @@ const execute = async (interaction) => {
   }
 };
 
-// ==================== KLUCZOWE METODY DLA LOADERA ====================
 execute.load = (filePath, collection) => {
   const data = new SlashCommandBuilder()
     .setName('help')
-    .setDescription('Wyświetla pomoc i listę komend')
+    .setDescription('Wyświetla pomoc i listę wszystkich komend')
     .setDMPermission(false);
 
   collection.set('help', {
@@ -78,4 +76,4 @@ execute.loadAliases = () => {
 };
 
 module.exports = execute;
-EOF
+EOT
