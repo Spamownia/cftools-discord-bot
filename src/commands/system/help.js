@@ -1,10 +1,10 @@
 /**
- * Komenda /help - FINALNA WERSJA (naprawiony logger + stabilne builders)
- * Naprawia błąd "logger.error is not a function"
+ * Komenda /help - FINALNA WERSJA (w pełni zgodna z loggerem i strukturą projektu)
+ * Naprawia "Aplikacja nie reaguje" oraz logger.error
  */
 
 const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
-const logger = require('@mirasaki/logger');   // poprawiony import
+const logger = require('@mirasaki/logger');
 const { emojis } = require('../../client');
 const pkg = require('../../../package.json');
 
@@ -17,36 +17,11 @@ const execute = async (interaction) => {
         .setCustomId('help')
         .setPlaceholder('Wybierz kategorię pomocy...')
         .addOptions([
-          {
-            label: 'Wszystkie komendy',
-            value: 'all',
-            description: 'Pokazuje wszystkie dostępne komendy',
-            emoji: '📋'
-          },
-          {
-            label: 'Administracja',
-            value: 'admin',
-            description: 'Komendy administratorskie',
-            emoji: '🔧'
-          },
-          {
-            label: 'Moderacja',
-            value: 'moderator',
-            description: 'Komendy moderatorskie',
-            emoji: '🛡️'
-          },
-          {
-            label: 'DayZ / Serwer',
-            value: 'dayz',
-            description: 'Komendy związane z serwerem DayZ',
-            emoji: '🎮'
-          },
-          {
-            label: 'Teleporty',
-            value: 'teleport',
-            description: 'Dostępne lokacje teleportacji',
-            emoji: '📍'
-          }
+          { label: 'Wszystkie komendy', value: 'all', description: 'Pokazuje wszystkie dostępne komendy', emoji: '📋' },
+          { label: 'Administracja',     value: 'admin',     description: 'Komendy administratorskie', emoji: '🔧' },
+          { label: 'Moderacja',         value: 'moderator', description: 'Komendy moderatorskie', emoji: '🛡️' },
+          { label: 'DayZ / Serwer',     value: 'dayz',      description: 'Komendy związane z serwerem DayZ', emoji: '🎮' },
+          { label: 'Teleporty',         value: 'teleport',  description: 'Dostępne lokacje teleportacji', emoji: '📍' }
         ])
     );
 
@@ -55,9 +30,7 @@ const execute = async (interaction) => {
       title: '📚 Pomoc — cftools-discord-bot',
       description: 'Wybierz kategorię z menu poniżej, aby zobaczyć komendy.',
       timestamp: new Date(),
-      footer: {
-        text: `Wersja ${pkg.version} • Husaria`
-      }
+      footer: { text: `Wersja ${pkg.version} • Husaria` }
     };
 
     await interaction.reply({
@@ -69,7 +42,6 @@ const execute = async (interaction) => {
     logger.debug(`[HELP] Komenda wykonana pomyślnie`);
 
   } catch (error) {
-    // Poprawione logowanie błędów – używamy metod dostępnych w loggerze z tego projektu
     logger.syserr(`[HELP] Błąd krytyczny: ${error.message}`);
     console.error(error);
 
@@ -82,7 +54,7 @@ const execute = async (interaction) => {
   }
 };
 
-// === Wymagane metody przez system ładowania ===
+// === OBOWIĄZKOWE METODY DLA SYSTEMU ŁADOWANIA ===
 execute.load = (filePath, collection) => {
   const data = new SlashCommandBuilder()
     .setName('help')
