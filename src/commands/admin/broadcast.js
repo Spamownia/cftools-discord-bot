@@ -10,24 +10,21 @@ const {
 const execute = async (interaction) => {
   try {
     await interaction.deferReply();
-
     const { member, options } = interaction;
     const serverCfg = getServerConfigCommandOptionValue(interaction);
     const message = options.getString('message');
 
     if (message.length > 256) {
-      await interaction.editReply({ 
+      return interaction.editReply({ 
         content: `${emojis.error} ${member}, wiadomość nie może przekraczać 256 znaków.` 
       });
-      return;
     }
 
     const res = await broadcastMessage(serverCfg.CFTOOLS_SERVER_API_ID, message);
     if (res !== true) {
-      await interaction.editReply({ 
+      return interaction.editReply({ 
         content: `${emojis.error} ${member}, błąd podczas wysyłania broadcastu.` 
       });
-      return;
     }
 
     const embed = new EmbedBuilder()
