@@ -1,13 +1,12 @@
 /**
- * Help Select Menu - FINAL CLEAN VERSION
- * Zero odniesień do getCommandSelectMenu
+ * Help Select Menu - Stabilna wersja
  */
 
 const logger = require('@mirasaki/logger');
 const { emojis, commands } = require('../../client');
 
 const execute = async (interaction) => {
-  logger.debug(`[HELP SELECT] Wybrano: ${interaction.values[0]}`);
+  logger.debug(`[HELP SELECT] Wybrano kategorię: ${interaction.values[0]}`);
 
   try {
     await interaction.deferUpdate();
@@ -21,16 +20,19 @@ const execute = async (interaction) => {
         .map(cmd => `**/${cmd.data.name}** — ${cmd.data.description || 'brak opisu'}`)
         .join('\n');
     } else {
-      content += `Komendy w kategorii **${category}**:\n\n(na razie pusto)`;
+      content += `Komendy w kategorii **${category}**:\n\n(na razie pusto - dodaj komendy do tej kategorii)`;
     }
 
-    await interaction.editReply({ content, components: [] });
+    await interaction.editReply({ 
+      content, 
+      components: [] 
+    });
 
   } catch (error) {
-    logger.syserr(`[HELP SELECT] Błąd: ${error.message}`);
+    logger.error(`[HELP SELECT] Błąd: ${error.message}`);
     console.error(error);
 
-    const errMsg = `${emojis?.error || '❌'} Wystąpił błąd w menu pomocy.`;
+    const errMsg = `${emojis?.error || '❌'} Wystąpił błąd podczas wyświetlania pomocy.`;
 
     if (interaction.deferred || interaction.replied) {
       await interaction.editReply({ content: errMsg }).catch(() => {});
@@ -40,6 +42,7 @@ const execute = async (interaction) => {
   }
 };
 
+// Poprawione ładowanie – rejestrujemy pod kluczem 'help'
 execute.load = (filePath, collection) => {
   collection.set('help', execute);
 };
