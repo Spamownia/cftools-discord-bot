@@ -1,5 +1,5 @@
 /**
- * Select Menu Handler
+ * Select Menu Handler - Poprawiona wersja
  */
 
 const logger = require('@mirasaki/logger');
@@ -8,26 +8,29 @@ const { emojis, selectMenus } = require('../client');
 const handleSelectMenu = async (interaction) => {
   const customId = interaction.customId;
 
-  logger.debug(`[SELECT MENU] Otrzymano select menu: ${customId}`);
+  logger.debug(`[SELECT MENU] Otrzymano: ${customId}`);
 
-  // Poprawna obsługa select menu (to była główna przyczyna błędu)
+  // Poprawne pobieranie select menu
   let selectMenu = selectMenus.get(customId);
 
-  // Obsługa select menu z dodatkowymi danymi (np. help:category:1)
+  // Obsługa customId z dodatkowymi parametrami (np. "help:category:1")
   if (!selectMenu && customId.includes(':')) {
     const baseId = customId.split(':')[0];
     selectMenu = selectMenus.get(baseId);
   }
 
   if (!selectMenu) {
-    logger.syserr(`[SELECT MENU] Nie znaleziono select menu o ID: ${customId}`);
-    return interaction.reply({
-      content: `${emojis?.error || '❌'} Select menu not found.`,
-      ephemeral: true
-    }).catch(() => {});
+    logger.debug(`[SELECT MENU] Nie znaleziono: ${customId}`);
+    if (!interaction.replied && !interaction.deferred) {
+      return interaction.reply({
+        content: `${emojis?.error || '❌'} Ten select menu nie jest obsługiwany.`,
+        ephemeral: true
+      }).catch(() => {});
+    }
+    return;
   }
 
-  // Defer jeśli nie jest jeszcze deferred/replied
+  // Defer update (bezpiecznie)
   if (!interaction.replied && !interaction.deferred) {
     await interaction.deferUpdate().catch(() => {});
   }
@@ -38,27 +41,20 @@ const handleSelectMenu = async (interaction) => {
     } else if (typeof selectMenu.run === 'function') {
       await selectMenu.run(interaction);
     } else {
-      throw new Error(`Select menu ${customId} nie posiada metody execute() ani run()`);
+      throw new Error(`Select menu ${customId} nie ma execute() ani run()`);
     }
   } catch (error) {
-    logger.syserr(`[SELECT MENU] BŁĄD w select menu ${customId}`);
+    logger.syserr(`[SELECT MENU] Błąd w ${customId}`);
     console.error(error);
 
-    const errorMsg = (error.message || error.toString()).slice(0, 1800);
+    const errorMsg = (error.message || error.toString()).slice(0, 1500);
 
     if (interaction.deferred || interaction.replied) {
       await interaction.editReply({
-        content: `${emojis?.error || '❌'} Wystąpił błąd:\n\`\`\`js\n${errorMsg}\n\`\`\``
-      }).catch(() => {});
-    } else {
-      await interaction.reply({
-        content: `${emojis?.error || '❌'} Wystąpił błąd:\n\`\`\`js\n${errorMsg}\n\`\`\``,
-        ephemeral: true
+        content: `${emojis?.error || '❌'} Wystąpił błąd w select menu:\n\`\`\`js\n${errorMsg}\n\`\`\``
       }).catch(() => {});
     }
   }
 };
 
-module.exports = {
-  handleSelectMenu
-};
+module.exports = { handleSelectMenu };
