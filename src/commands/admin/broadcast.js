@@ -1,55 +1,65 @@
-const { ApplicationCommandOptionType } = require('discord.js');
-const { ChatInputCommand } = require('../../classes/Commands');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const logger = require('@mirasaki/logger');
+const { emojis } = require('../../client');
 const {
-  requiredServerConfigCommandOption, getServerConfigCommandOptionValue, broadcastMessage
+  requiredServerConfigCommandOption,
+  getServerConfigCommandOptionValue,
+  broadcastMessage
 } = require('../../modules/cftClient');
 
-module.exports = new ChatInputCommand({
-  permLevel: 'Administrator',
-  global: true,
-  data: {
-    description: 'Broadcast a message to the entire server',
-    options: [
-      requiredServerConfigCommandOption,
-      {
-        type: ApplicationCommandOptionType.String,
-        name: 'message',
-        description: 'Message to send to specified player',
-        required: true,
-        min_length: 3,
-        max_length: 256
-      }
-    ]
-  },
-
-  run: async (client, interaction) => {
-    // Destructuring
-    const { member, options } = interaction;
-    const { emojis } = client.container;
-
-    // Deferring our reply
+const execute = async (interaction) => {
+  try {
     await interaction.deferReply();
 
-    // Check if a proper server option is provided
-    const serverCfg = getServerConfigCommandOptionValue(interaction);
+    logger.debug(`[BROADCAST] Wywołano przez ${interaction.user.tag}`);
 
-    // Assignment
+    const { member, options } = interaction;
+    const serverCfg = getServerConfigCommandOptionValue(interaction);
     const message = options.getString('message');
 
-    // Checking message length
     if (message.length > 256) {
-      interaction.editReply({ content: `${ emojis.error } ${ member }, message content can't be over \`256\` characters long - this command has been cancelled` });
+      await interaction.editReply({ content: `${emojis.error} ${member}, wiadomość nie może przekraczać 256 znaków.` });
       return;
     }
 
-    // Sending message to server
     const res = await broadcastMessage(serverCfg.CFTOOLS_SERVER_API_ID, message);
     if (res !== true) {
-      interaction.editReply({ content: `${ emojis.error } ${ member }, invalid response code - message might not have broadcasted.` });
+      await interaction.editReply({ content: `${emojis.error} ${member}, błąd podczas broadcastu (nieprawidłowa odpowiedź API).` });
       return;
     }
 
-    // User feedback on success
-    interaction.editReply({ content: `${ emojis.success } ${ member }, message delivered and displayed to everyone online.\n\n\`\`\`${ message }\`\`\`` });
+    const embed = new EmbedBuilder()
+      .setColor(0x00ff88)
+      .setTitle('✅ Broadcast wysłany')
+      .setDescription(`\`\`\`${message}\`\`\``)
+      .setFooter({ text: `Serwer: ${serverCfg.NAME}` });
+
+    await interaction.editReply({ embeds: [embed] });
+  } catch (error) {
+    logger.syserr(`[BROADCAST] Błąd krytyczny: ${error.message}`);
+    console.error(error);
+    if (interaction.deferred) {
+      await interaction.editReply({ content: `${emojis.error || '❌'} Wystąpił błąd podczas broadcastu.` });
+    }
   }
-});
+};
+
+execute.load = (filePath, collection) => {
+  const data = new SlashCommandBuilder()
+    .setName('broadcast')
+    .setDescription('Wyślij wiadomość do wszystkich graczy na serwerze')
+    .setDMPermission(false)
+    .addStringOption(requiredServerConfigCommandOption)
+    .addStringOption(option =>
+      option.setName('message')
+        .setDescription('Treść wiadomości')
+        .setRequired(true)
+        .setMinLength(3)
+        .setMaxLength(256)
+    );
+
+  collection.set('broadcast', { data, execute, category: 'admin', aliases: [] });
+};
+
+execute.loadAliases = () => [];
+module.exports = execute;
