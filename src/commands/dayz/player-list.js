@@ -1,5 +1,5 @@
 /**
- * Komenda /player-list - Naprawiona wersja (brak podwójnego reply)
+ * Komenda /player-list - Stabilna wersja z poprawnym deferReply
  */
 
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
@@ -8,34 +8,34 @@ const { emojis } = require('../../client');
 
 const execute = async (interaction) => {
   try {
-    // NATYCHMIASTOWE defer – najważniejsze!
+    // ZAWSZE deferujemy jako pierwsze!
     await interaction.deferReply();
 
     logger.debug(`[PLAYER-LIST] Wywołano przez ${interaction.user.tag}`);
 
-    // Tutaj wstaw swój właściwy kod pobierania listy graczy z CFTools
-    // Na razie placeholder – zastąp prawdziwą logiką
+    // === TUTAJ WSTAWIASZ SWOJĄ LOGIKĘ POBIERANIA GRACZY Z CFTOOLS ===
+    // Na razie placeholder – później zastąpisz prawdziwym kodem
     const embed = new EmbedBuilder()
       .setColor(0x00ff88)
-      .setTitle('👥 Lista graczy na serwerze')
-      .setDescription('Ładowanie listy graczy z CFTools...')
+      .setTitle('👥 Lista graczy online')
+      .setDescription('Pobieranie listy graczy z CFTools API...\n\n`Ładowanie...`')
       .setTimestamp();
 
     await interaction.editReply({ embeds: [embed] });
 
   } catch (error) {
-    logger.syserr(`[PLAYER-LIST] Błąd: ${error.message}`);
+    logger.syserr(`[PLAYER-LIST] Błąd krytyczny: ${error.message}`);
     console.error(error);
 
-    if (!interaction.replied && !interaction.deferred) {
-      await interaction.reply({
-        content: `${emojis?.error || '❌'} Wystąpił błąd podczas pobierania listy graczy.`,
-        ephemeral: true
-      }).catch(() => {});
-    } else if (interaction.deferred) {
-      await interaction.editReply({
-        content: `${emojis?.error || '❌'} Wystąpił błąd podczas pobierania listy graczy.`
-      }).catch(() => {});
+    const errorEmbed = new EmbedBuilder()
+      .setColor(0xff0000)
+      .setTitle('❌ Błąd')
+      .setDescription('Wystąpił błąd podczas pobierania listy graczy.');
+
+    if (interaction.deferred) {
+      await interaction.editReply({ embeds: [errorEmbed] });
+    } else if (!interaction.replied) {
+      await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
     }
   }
 };
