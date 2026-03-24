@@ -1,6 +1,6 @@
 /**
- * Komenda /help - Pełna, zgodna ze strukturą projektu wersja
- * Naprawia błąd: cmd.loadAliases is not a function
+ * Komenda /help - Wersja w 100% zgodna ze strukturą bota
+ * Naprawia problem "Chat myśli..." 
  */
 
 const { SlashCommandBuilder } = require('discord.js');
@@ -9,43 +9,67 @@ const pkg = require('../../../package.json');
 
 const execute = async (interaction) => {
   try {
-    // Natychmiastowa odpowiedź - kluczowe dla uniknięcia "Aplikacja nie reaguje"
+    // NATYCHMIASTOWA odpowiedź - najważniejsze!
     await interaction.deferReply({ ephemeral: false });
 
-    const selectMenu = {
+    const row = {
       type: 1,
-      components: [
-        {
-          type: 3, // StringSelect
-          custom_id: 'help',
-          placeholder: 'Wybierz kategorię pomocy...',
-          options: [
-            { label: 'Wszystkie komendy', value: 'all', description: 'Lista wszystkich komend', emoji: '📋' },
-            { label: 'Administracja',     value: 'admin',     description: 'Komendy administratorskie', emoji: '🔧' },
-            { label: 'Moderacja',         value: 'moderator', description: 'Komendy moderatorskie', emoji: '🛡️' },
-            { label: 'DayZ / Serwer',     value: 'dayz',      description: 'Komendy związane z serwerem', emoji: '🎮' },
-            { label: 'Teleporty',         value: 'teleport',  description: 'Dostępne lokacje teleportacji', emoji: '📍' },
-          ]
-        }
-      ]
+      components: [{
+        type: 3, // String Select Menu
+        custom_id: 'help',
+        placeholder: 'Wybierz kategorię pomocy...',
+        options: [
+          { 
+            label: 'Wszystkie komendy', 
+            value: 'all', 
+            description: 'Pokazuje wszystkie dostępne komendy', 
+            emoji: '📋' 
+          },
+          { 
+            label: 'Administracja', 
+            value: 'admin', 
+            description: 'Komendy administratorskie', 
+            emoji: '🔧' 
+          },
+          { 
+            label: 'Moderacja', 
+            value: 'moderator', 
+            description: 'Komendy dla moderatorów', 
+            emoji: '🛡️' 
+          },
+          { 
+            label: 'DayZ / Serwer', 
+            value: 'dayz', 
+            description: 'Komendy związane z serwerem DayZ', 
+            emoji: '🎮' 
+          },
+          { 
+            label: 'Teleporty', 
+            value: 'teleport', 
+            description: 'Dostępne lokacje teleportacji', 
+            emoji: '📍' 
+          }
+        ]
+      }]
     };
 
     const embed = {
       color: 0x00ff88,
       title: '📚 Pomoc — cftools-discord-bot',
-      description: 'Wybierz kategorię z poniższego menu, aby zobaczyć dostępne komendy.',
-      timestamp: new Date().toISOString(),
-      footer: { text: `Wersja ${pkg.version} • Husaria` }
+      description: 'Wybierz kategorię z menu poniżej, aby zobaczyć komendy.',
+      timestamp: new Date(),
+      footer: {
+        text: `Wersja ${pkg.version} • Husaria`
+      }
     };
 
     await interaction.editReply({
       embeds: [embed],
-      components: [selectMenu]
+      components: [row]
     });
 
   } catch (error) {
-    console.error('[HELP COMMAND ERROR]', error);
-
+    console.error('[HELP ERROR]', error);
     if (!interaction.replied && !interaction.deferred) {
       await interaction.reply({
         content: `${emojis?.error || '❌'} Wystąpił błąd podczas wyświetlania pomocy.`,
@@ -55,24 +79,23 @@ const execute = async (interaction) => {
   }
 };
 
-// === Wymagane metody przez system ładowania komend ===
+// === Wymagane przez Twój system ładowania ===
 execute.load = (filePath, collection) => {
   const data = new SlashCommandBuilder()
     .setName('help')
-    .setDescription('Wyświetla pomoc i listę wszystkich komend')
+    .setDescription('Wyświetla pomoc i listę komend')
     .setDMPermission(false);
 
   collection.set('help', {
     data,
     execute,
     category: 'system',
-    aliases: [] // puste aliasy
+    aliases: []
   });
 };
 
-// Ta metoda jest wywoływana w index.js – musi istnieć!
 execute.loadAliases = () => {
-  // Komenda nie używa aliasów – zostawiamy pustą funkcję
+  // Komenda nie używa aliasów
   return [];
 };
 
