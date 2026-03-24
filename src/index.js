@@ -27,7 +27,7 @@ logger.info(`${ chalk.greenBright.underline(packageIdentifierStr) } by ${ chalk.
 // Initializing/declaring our variables
 const initTimerStart = process.hrtime.bigint();
 
-// Array of Intents your bot needs
+// Array of Intents
 const intents = [
   GatewayIntentBits.Guilds,
   GatewayIntentBits.GuildMessages,
@@ -72,12 +72,12 @@ process.on('SIGINT', () => {
 });
 
 // Global error handling
-process.on('unhandledRejection', (reason, promise) => {
-  logger.syserr('Encountered unhandledRejection:');
+process.on('unhandledRejection', (reason) => {
+  logger.syserr('Unhandled Rejection:');
   console.error(reason);
 });
 process.on('uncaughtException', (err) => {
-  logger.syserr('Encountered uncaughtException:');
+  logger.syserr('Uncaught Exception:');
   console.error(err);
 });
 
@@ -105,19 +105,15 @@ const registerListeners = () => {
 // Containerizing all our client extensions
 client.container = clientExtensions;
 
-// Clear slash commands if enabled in .env
+// Clear slash commands if enabled
 if (CLEAR_SLASH_COMMAND_API_DATA === 'true') {
   clearApplicationCommandData();
 }
 
-// Destructure from our client extensions container
+// Destructure collections
 const {
   commands,
-  contextMenus,
-  buttons,
-  modals,
-  autoCompletes,
-  selectMenus
+  contextMenus
 } = client.container;
 
 // === LOADING COMMANDS ===
@@ -133,7 +129,7 @@ for (const filePath of getFiles(CHAT_INPUT_COMMAND_DIR)) {
   }
 }
 
-logger.debug(`Start loading User Context Menu Commands... ("${ CONTEXT_MENU_COMMAND_DIR }/user")`);
+logger.debug(`Start loading User Context Menu Commands...`);
 for (const filePath of getFiles(`${ CONTEXT_MENU_COMMAND_DIR }/user`)) {
   try {
     const command = require(filePath);
@@ -144,7 +140,7 @@ for (const filePath of getFiles(`${ CONTEXT_MENU_COMMAND_DIR }/user`)) {
   }
 }
 
-logger.debug(`Start loading Message Context Menu Commands... ("${ CONTEXT_MENU_COMMAND_DIR }/message")`);
+logger.debug(`Start loading Message Context Menu Commands...`);
 for (const filePath of getFiles(`${ CONTEXT_MENU_COMMAND_DIR }/message`)) {
   try {
     const command = require(filePath);
@@ -155,32 +151,35 @@ for (const filePath of getFiles(`${ CONTEXT_MENU_COMMAND_DIR }/message`)) {
   }
 }
 
-// Loading other interactions (buttons, modals, etc.)
-['buttons', 'modals', 'autocomplete', 'select-menus'].forEach(dir => {
-  const dirPath = dir === 'autocomplete' ? AUTO_COMPLETE_INTERACTION_DIR : 
-                  dir === 'select-menus' ? SELECT_MENU_INTERACTION_DIR : 
-                  eval(`${dir.toUpperCase()}_INTERACTION_DIR`);
-  
-  logger.debug(`Start loading ${dir}...`);
-  for (const filePath of getFiles(dirPath)) {
+// Loading Button, Modal, Autocomplete, Select Menu
+const interactionDirs = {
+  buttons: BUTTON_INTERACTION_DIR,
+  modals: MODAL_INTERACTION_DIR,
+  autoCompletes: AUTO_COMPLETE_INTERACTION_DIR,
+  selectMenus: SELECT_MENU_INTERACTION_DIR
+};
+
+Object.entries(interactionDirs).forEach(([key, dir]) => {
+  logger.debug(`Start loading ${key}... ("${dir}")`);
+  for (const filePath of getFiles(dir)) {
     try {
       const command = require(filePath);
-      command.load(filePath, client.container[dir === 'select-menus' ? 'selectMenus' : dir]);
+      command.load(filePath, client.container[key]);
     } catch (err) {
-      logger.syserr(`Error loading ${dir}: ${filePath}`);
+      logger.syserr(`Error loading ${key}: ${filePath}`);
       console.error(err.stack || err);
     }
   }
 });
 
-// Refresh InteractionCommand data if requested
+// Refresh slash command data
 refreshSlashCommandData(client);
 
-// Registering our listeners
+// Register listeners
 registerListeners();
 
 /**
- * INTERACTION CREATE - GŁÓWNY HANDLER (naprawia "Aplikacja nie reaguje")
+ * INTERACTION CREATE HANDLER - KLUCZOWY FIX
  */
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isChatInputCommand() && !interaction.isContextMenuCommand()) return;
@@ -188,12 +187,12 @@ client.on('interactionCreate', async (interaction) => {
   try {
     await handleCommand(interaction);
   } catch (err) {
-    logger.syserr(`Critical error in interactionCreate for command: ${interaction.commandName}`);
+    logger.syserr(`Critical error in interactionCreate for ${interaction.commandName || 'unknown'}`);
     console.error(err);
 
     if (!interaction.replied && !interaction.deferred) {
       await interaction.reply({
-        content: `${require('../../config/emojis.json').error || '❌'} Wystąpił poważny błąd.`,
+        content: `${require('../../config/emojis.json').error || '❌'} Wystąpił poważny błąd wewnętrzny.`,
         ephemeral: true
       }).catch(() => {});
     }
@@ -205,19 +204,19 @@ client.on('interactionCreate', async (interaction) => {
  */
 logger.success(`Finished initializing after ${ getRuntime(initTimerStart).ms } ms`);
 
-// Require our server index file if requested
+// API server if enabled
 if (USE_API === 'true') require('./server/');
 
-// Exit before initializing listeners in test mode
+// Exit in test mode
 if (modeArg && modeArg.endsWith('testing')) process.exit(1);
 
-// Logging in to our client
+// Login
 client.login(DISCORD_BOT_TOKEN);
 
 // Keep-alive for Render
 const express = require('express');
 const app = express();
-const PORT = process.env.PORT || 10000;   // Render często używa 10000
+const PORT = process.env.PORT || 10000;
 
 app.get('/health', (req, res) => {
   res.status(200).send(`Bot żyje! Uptime: ${Math.floor(process.uptime() / 60)} minut`);
