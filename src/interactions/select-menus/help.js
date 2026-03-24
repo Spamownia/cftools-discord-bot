@@ -1,56 +1,51 @@
 /**
- * Help Select Menu – Poprawiona wersja (działa z aktualnym selectMenuHandler)
+ * Help Select Menu – czysta wersja zgodna z obecnym selectMenuHandler
  */
 
 const logger = require('@mirasaki/logger');
 const { emojis, commands } = require('../../client');
 
 const execute = async (interaction) => {
-  logger.debug(`[HELP SELECT] Wywołano z customId: ${interaction.customId}`);
+  logger.debug(`[HELP SELECT] Otrzymano wybór: ${interaction.values[0]}`);
 
   try {
-    // Deferujemy od razu – to najważniejsze, żeby uniknąć "Aplikacja nie odpowiada"
-    if (!interaction.deferred && !interaction.replied) {
-      await interaction.deferUpdate();
-    }
+    // To jest kluczowe – deferujemy natychmiast
+    await interaction.deferUpdate();
 
-    const selectedCategory = interaction.values[0];
+    const category = interaction.values[0];
 
-    let content = `📋 **Pomoc – kategoria: ${selectedCategory}**\n\n`;
+    let content = `📋 **Pomoc – ${category === 'all' ? 'Wszystkie komendy' : 'Kategoria: ' + category}**\n\n`;
 
-    if (selectedCategory === 'all') {
+    if (category === 'all') {
       content += Array.from(commands.values())
         .map(cmd => `**/${cmd.data.name}** — ${cmd.data.description || 'brak opisu'}`)
         .join('\n');
     } else {
-      content += `Komendy z kategorii **${selectedCategory}**:\n\n(na razie pusto – dodaj komendy do tej kategorii)`;
+      content += `Komendy w kategorii **${category}**:\n\n(na razie brak komend w tej kategorii)`;
     }
 
     await interaction.editReply({
       content: content,
-      components: [] // usuwa menu po wyborze
+      components: [] // usuwa select menu po wyborze
     });
 
   } catch (error) {
-    logger.syserr(`[HELP SELECT] Błąd wykonania: ${error.message}`);
+    logger.syserr(`[HELP SELECT] Błąd: ${error.message}`);
     console.error(error);
 
-    if (!interaction.replied && !interaction.deferred) {
-      await interaction.reply({
-        content: `${emojis?.error || '❌'} Wystąpił błąd przy wyświetlaniu pomocy.`,
-        ephemeral: true
-      }).catch(() => {});
-    } else if (interaction.deferred || interaction.replied) {
-      await interaction.editReply({
-        content: `${emojis?.error || '❌'} Wystąpił błąd przy wyświetlaniu pomocy.`
-      }).catch(() => {});
+    const errorMsg = `${emojis?.error || '❌'} Wystąpił błąd w help menu.`;
+
+    if (interaction.deferred || interaction.replied) {
+      await interaction.editReply({ content: errorMsg }).catch(() => {});
+    } else {
+      await interaction.reply({ content: errorMsg, ephemeral: true }).catch(() => {});
     }
   }
 };
 
-// Wymagane przez Twój loader
+// Wymagane przez Twój system ładowania selectMenus
 execute.load = (filePath, collection) => {
-  collection.set('help', execute);   // nazwa musi być 'help' – taka jak w customId
+  collection.set('help', execute);
 };
 
 module.exports = execute;
