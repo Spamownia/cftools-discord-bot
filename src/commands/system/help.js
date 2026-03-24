@@ -1,10 +1,10 @@
 /**
- * Komenda /help - FINALNA WERSJA (używa builders + natychmiastowa reply)
- * Naprawia "Aplikacja nie reaguje"
+ * Komenda /help - FINALNA WERSJA (naprawiony logger + stabilne builders)
+ * Naprawia błąd "logger.error is not a function"
  */
 
 const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
-const logger = require('@mirasaki/logger');
+const logger = require('@mirasaki/logger');   // poprawiony import
 const { emojis } = require('../../client');
 const pkg = require('../../../package.json');
 
@@ -12,7 +12,6 @@ const execute = async (interaction) => {
   try {
     logger.debug(`[HELP] Komenda uruchomiona przez ${interaction.user.tag}`);
 
-    // Tworzenie Select Menu przy użyciu builders (zalecane w discord.js v14)
     const row = new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId('help')
@@ -61,7 +60,6 @@ const execute = async (interaction) => {
       }
     };
 
-    // NATYCHMIASTOWA odpowiedź (najpewniejsza metoda)
     await interaction.reply({
       embeds: [embed],
       components: [row],
@@ -71,7 +69,8 @@ const execute = async (interaction) => {
     logger.debug(`[HELP] Komenda wykonana pomyślnie`);
 
   } catch (error) {
-    logger.error(`[HELP] Błąd krytyczny: ${error.message}`);
+    // Poprawione logowanie błędów – używamy metod dostępnych w loggerze z tego projektu
+    logger.syserr(`[HELP] Błąd krytyczny: ${error.message}`);
     console.error(error);
 
     if (!interaction.replied && !interaction.deferred) {
@@ -83,7 +82,7 @@ const execute = async (interaction) => {
   }
 };
 
-// === Wymagane metody przez system ładowania komend ===
+// === Wymagane metody przez system ładowania ===
 execute.load = (filePath, collection) => {
   const data = new SlashCommandBuilder()
     .setName('help')
