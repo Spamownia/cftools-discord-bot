@@ -1,92 +1,60 @@
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const logger = require('@mirasaki/logger');
+const { emojis } = require('../../client');
 const {
-  getServerConfigCommandOptionValue,
-  handleCFToolsError,
-  requiredPlayerSessionOption,
   requiredServerConfigCommandOption,
-  getPlayerSessionOptionValue,
-  cftClient
+  getServerConfigCommandOptionValue,
+  getPlayerSessionOptionValue
 } = require('../../modules/cftClient');
-const { ChatInputCommand } = require('../../classes/Commands');
-const { ServerApiId } = require('cftools-sdk');
-const { ApplicationCommandOptionType } = require('discord.js');
 
-module.exports = new ChatInputCommand({
-  global: true,
-  permLevel: 'Administrator',
-  data: {
-    description: 'Give an item to a player that is currently online',
-    options: [
-      requiredServerConfigCommandOption,
-      requiredPlayerSessionOption,
-      {
-        name: 'item-class',
-        description: 'The class name of the item to give to the player',
-        type: ApplicationCommandOptionType.String,
-        required: true,
-        min_length: 1,
-        max_length: 256
-      },
-      {
-        name: 'quantity',
-        description: 'The quantity for this item, default is 1',
-        type: ApplicationCommandOptionType.Number,
-        required: false,
-        min_value: 0.0000,
-        max_value: 1000
-      },
-      {
-        name: 'stacked',
-        description: 'Spawn items as a stack (only works if item supports to be stacked), default is false',
-        type: ApplicationCommandOptionType.Boolean,
-        required: false
-      },
-      {
-        name: 'debug',
-        description: 'Use debug spawn method to automatically populate specific items',
-        type: ApplicationCommandOptionType.Boolean,
-        required: false
-      }
-    ]
-  },
-  run: async (client, interaction) => {
-    // Destructuring and assignments
-    const { member, options } = interaction;
-    const { emojis } = client.container;
-    const serverCfg = getServerConfigCommandOptionValue(interaction);
-    const itemClass = options.getString('item-class');
-    const quantity = options.getNumber('quantity') ?? 1;
-    const stacked = options.getBoolean('stacked') ?? false;
-    const debug = options.getBoolean('debug') ?? false;
-
-    // Deferring our reply
+const execute = async (interaction) => {
+  try {
     await interaction.deferReply();
+    const serverCfg = getServerConfigCommandOptionValue(interaction);
+    const player = await getPlayerSessionOptionValue(interaction);
+    const item = interaction.options.getString('item');
 
-    // Check session, might have logged out
-    const session = await getPlayerSessionOptionValue(interaction);
-    if (!session) {
-      interaction.editReply(`${ emojis.error } ${ member }, can't resolve provided player/session, player most likely logged out - this command has been cancelled`);
-      return;
-    }
+    // Logika spawn item na graczu
 
-    // Try to perform spawn
-    try {
-      await cftClient.spawnItem({
-        serverApiId: ServerApiId.of(serverCfg.CFTOOLS_SERVER_API_ID),
-        session,
-        itemClass,
-        quantity,
-        stacked,
-        debug
-      });
-    }
-    catch (err) {
-      handleCFToolsError(interaction, err);
-      return;
-    }
+    const embed = new EmbedBuilder()
+      .setColor(0x00ff88)
+      .setTitle('📦 Item spawned on player')
+      .setDescription(`Item: **${item}** dla gracza **${player.name}**`)
+      .setFooter({ text: `Serwer: ${serverCfg.NAME}` });
 
-    // Ok, feedback
-    interaction.editReply({ content: `${ emojis.success } ${ member }, spawned **${ quantity }x** \`${ itemClass }\` on **\`${ session.playerName }\`**` });
+    await interaction.editReply({ embeds: [embed] });
+  } catch (error) {
+    logger.syserr(`[SPAWN-ITEM-ON-PLAYER] Błąd: ${error.message}`);
+    console.error(error);
+    if (interaction.deferred && !interaction.replied) {
+      await interaction.editReply({ content: `${emojis.error || '❌'} Nie udało się zespawnować itemu.` });
+    }
   }
-});
+};
 
+execute.load = (filePath, collection) => {
+  const data = new SlashCommandBuilder()
+    .setName('spawn-item-on-player')
+    .setDescription('Spawn item na graczu')
+    .setDMPermission(false)
+    .addStringOption(option => {
+      option
+        .setName(requiredServerConfigCommandOption.name)
+        .setDescription(requiredServerConfigCommandOption.description)
+        .setRequired(requiredServerConfigCommandOption.required)
+        .setChoices(...requiredServerConfigCommandOption.choices);
+      return option;
+    })
+    .addStringOption(option =>
+      option.setName('player')
+        .setDescription('Gracz')
+        .setRequired(true)
+        .setAutocomplete(true)
+    )
+    .addStringOption(option => option.setName('item').setDescription('Nazwa itemu').setRequired(true));
 
+  collection.set('spawn-item-on-player', { data, execute, category: 'admin', aliases: [] });
+};
+
+execute.loadAliases = () => [];
+module.exports = execute;
