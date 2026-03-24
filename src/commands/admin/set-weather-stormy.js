@@ -1,79 +1,49 @@
-const { ApplicationCommandOptionType } = require('discord.js');
-const { ChatInputCommand } = require('../../classes/Commands');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const logger = require('@mirasaki/logger');
+const { emojis } = require('../../client');
 const {
   requiredServerConfigCommandOption,
   getServerConfigCommandOptionValue,
-  postGameLabsAction,
-  broadcastMessage
+  changeGameWeather
 } = require('../../modules/cftClient');
 
-module.exports = new ChatInputCommand({
-  permLevel: 'Administrator',
-  global: true,
-  data: {
-    description: 'Change the current in-game weather',
-    options: [
-      requiredServerConfigCommandOption,
-      {
-        name: 'notify-players',
-        description: 'Send a global notification to the players, default true',
-        type: ApplicationCommandOptionType.Boolean,
-        required: false
-      }
-    ]
-  },
-
-  run: async (client, interaction) => {
-    // Destructuring
-    const { member, options } = interaction;
-    const { emojis } = client.container;
-    const notifyPlayers = options.getBoolean('notify-players') ?? true;
-
-    // Deferring our reply
+const execute = async (interaction) => {
+  try {
     await interaction.deferReply();
-
-    // Resolve options
     const serverCfg = getServerConfigCommandOptionValue(interaction);
+    await changeGameWeather(serverCfg.CFTOOLS_SERVER_API_ID, 'storm');
 
-    // Performing request
-    const overcast = 1.00;
-    const fog = .35;
-    const rain = .9;
-    const wind = .75;
-    const res = await postGameLabsAction(
-      serverCfg.CFTOOLS_SERVER_API_ID,
-      'CFCloud_WorldWeather',
-      'world',
-      null,
-      {
-        overcast: { valueFloat: overcast },
-        fog: { valueFloat: fog },
-        rain: { valueFloat: rain },
-        wind: { valueInt: wind }
-      }
-    );
+    const embed = new EmbedBuilder()
+      .setColor(0x00aaff)
+      .setTitle('⛈️ Pogoda ustawiona na Stormy')
+      .setFooter({ text: `Serwer: ${serverCfg.NAME}` });
 
-    if (res !== true) {
-      interaction.editReply({ content: `${ emojis.error } ${ member }, invalid response code - weather might not have been updated to \`stormy\`` });
-      return;
+    await interaction.editReply({ embeds: [embed] });
+  } catch (error) {
+    logger.syserr(`[SET-WEATHER-STORMY] Błąd: ${error.message}`);
+    console.error(error);
+    if (interaction.deferred && !interaction.replied) {
+      await interaction.editReply({ content: `${emojis.error || '❌'} Nie udało się ustawić pogody.` });
     }
-
-    // Resolve weather string
-    const overcastStr = overcast.toFixed(2);
-    const fogStr = fog.toFixed(2);
-    const rainStr = rain.toFixed(2);
-    const windStr = wind.toString().padStart(3, '0');
-    const weatherStr = `Overcast: ${ overcastStr }\nFog: ${ fogStr }\nRain: ${ rainStr }\nWind: ${ windStr }`;
-
-    // Notify player
-    if (notifyPlayers) {
-      await broadcastMessage(
-        serverCfg.CFTOOLS_SERVER_API_ID,
-        'The weather has been changed to stormy by an administrator (this might take a while to take effect)'
-      );
-    }
-
-    // User feedback on success
-    interaction.editReply({ content: `${ emojis.success } ${ member }, weather has been changed to:\n\n\`\`\`${ weatherStr }\`\`\`` });
   }
-});
+};
+
+execute.load = (filePath, collection) => {
+  const data = new SlashCommandBuilder()
+    .setName('set-weather-stormy')
+    .setDescription('Ustawia pogodę na burzową')
+    .setDMPermission(false)
+    .addStringOption(option => {
+      option
+        .setName(requiredServerConfigCommandOption.name)
+        .setDescription(requiredServerConfigCommandOption.description)
+        .setRequired(requiredServerConfigCommandOption.required)
+        .setChoices(...requiredServerConfigCommandOption.choices);
+      return option;
+    });
+
+  collection.set('set-weather-stormy', { data, execute, category: 'admin', aliases: [] });
+};
+
+execute.loadAliases = () => [];
+module.exports = execute;
