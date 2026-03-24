@@ -1,70 +1,96 @@
-const { ChatInputCommand } = require('../../classes/Commands');
-const {
-  getCommandSelectMenu,
-  generateCommandOverviewEmbed,
-  generateCommandInfoEmbed
-} = require('../../handlers/commands');
-const { commandAutoCompleteOption } = require('../../interactions/autocomplete/command');
+/**
+ * Komenda /help - Profesjonalna wersja z Select Menu
+ */
 
-module.exports = new ChatInputCommand({
-  global: true,
-  aliases: [ 'commands' ],
-  cooldown: {
-    // Use user cooldown type instead of default member
-    type: 'user',
-    usages: 2,
-    duration: 10
-  },
-  clientPerms: [ 'EmbedLinks' ],
-  data: {
-    description: 'Receive detailed command information',
-    options: [ commandAutoCompleteOption ]
-  },
+const { SlashCommandBuilder } = require('discord.js');
+const { emojis } = require('../../client');
 
-  run: (client, interaction) => {
-    // Destructuring
-    const { member } = interaction;
-    const {
-      commands, contextMenus, emojis
-    } = client.container;
+const execute = async (interaction) => {
+  try {
+    // Natychmiastowa odpowiedź - ważne, żeby Discord nie pokazywał "Aplikacja nie reaguje"
+    await interaction.deferReply({ ephemeral: false });
 
-    // Check for optional autocomplete focus
-    const commandName = interaction.options.getString('command');
-    const hasCommandArg = commandName !== null && typeof commandName !== 'undefined';
+    const row = {
+      type: 1, // Action Row
+      components: [
+        {
+          type: 3, // String Select Menu
+          custom_id: 'help',                    // <-- to jest kluczowe
+          placeholder: 'Wybierz kategorię pomocy...',
+          options: [
+            {
+              label: 'Wszystkie komendy',
+              value: 'all',
+              description: 'Pokazuje listę wszystkich dostępnych komend',
+              emoji: '📋'
+            },
+            {
+              label: 'Administracja',
+              value: 'admin',
+              description: 'Komendy dla administratorów',
+              emoji: '🔧'
+            },
+            {
+              label: 'Moderacja',
+              value: 'moderator',
+              description: 'Komendy moderacyjne',
+              emoji: '🛡️'
+            },
+            {
+              label: 'DayZ / Serwer',
+              value: 'dayz',
+              description: 'Komendy związane z serwerem DayZ',
+              emoji: '🎮'
+            },
+            {
+              label: 'Teleporty',
+              value: 'teleport',
+              description: 'Dostępne lokacje teleportacji',
+              emoji: '📍'
+            }
+          ]
+        }
+      ]
+    };
 
-    // Show command overview if no command parameter is supplied
-    if (!hasCommandArg) {
-      // Getting our command select menu, re-used
-      const cmdSelectMenu = getCommandSelectMenu(member);
+    const embed = {
+      color: 0x00ff00,
+      title: '📚 Pomoc - cftools-discord-bot',
+      description: 'Wybierz kategorię z menu poniżej, aby zobaczyć dostępne komendy.',
+      timestamp: new Date(),
+      footer: {
+        text: `Wersja ${require('../../../package.json').version}`
+      }
+    };
 
-      // Reply to the interaction with our embed
-      interaction.reply({
-        embeds: [ generateCommandOverviewEmbed(commands, interaction) ],
-        components: [ cmdSelectMenu ]
-      });
-      return;
-    }
+    await interaction.editReply({
+      embeds: [embed],
+      components: [row]
+    });
 
-    // Request HAS optional command argument
-    // Assigning our data
-    const clientCmd = commands.get(commandName)
-      || contextMenus.get(commandName);
-
-    // Checking if the commandName is a valid client command
-    if (!clientCmd) {
-      interaction.reply({
-        content: `${ emojis.error } ${ member }, I couldn't find the command **\`/${ commandName }\`**`,
+  } catch (error) {
+    console.error(error);
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({
+        content: `${emojis?.error || '❌'} Wystąpił błąd podczas wyświetlania pomocy.`,
         ephemeral: true
-      });
-      return;
+      }).catch(() => {});
     }
-
-    // Replying with our command information embed
-    interaction.reply({ embeds: [
-      generateCommandInfoEmbed(
-        clientCmd,
-        interaction
-      )
-    ] });
   }
-});
+};
+
+// Ładowanie komendy
+execute.load = (filePath, collection) => {
+  const data = new SlashCommandBuilder()
+    .setName('help')
+    .setDescription('Wyświetla pomoc i listę komend')
+    .setDMPermission(false);
+
+  collection.set('help', { 
+    data, 
+    execute,
+    category: 'system'
+  });
+};
+
+module.exports = execute;
