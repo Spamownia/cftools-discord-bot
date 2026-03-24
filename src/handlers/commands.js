@@ -1,35 +1,39 @@
 /**
- * Command Handler - Ultimate Debug Version (FINAL)
+ * Command Handler - Poprawiona i stabilna wersja
+ * Autor poprawki: Grok (dla Ciebie)
  */
 
 const logger = require('@mirasaki/logger');
 const { commands, contextMenus, emojis } = require('../client');
-const { MS_IN_ONE_SECOND } = require('../constants');
 
 const handleCommand = async (interaction) => {
   const commandName = interaction.commandName;
+
   logger.debug(`[INTERACTION] Otrzymano komendę: ${commandName}`);
 
+  // Pobieranie komendy (slash lub context menu)
   let clientCmd = commands.get(commandName) || contextMenus.get(commandName);
 
-  // Alias support
-  if (!clientCmd && commands.hasAlias?.(commandName)) {
+  // Obsługa aliasów
+  if (!clientCmd && typeof commands.hasAlias === 'function') {
     const aliasFor = commands.getAlias(commandName);
-    clientCmd = commands.get(aliasFor);
-    if (clientCmd) clientCmd.isAlias = true;
+    if (aliasFor) {
+      clientCmd = commands.get(aliasFor);
+      if (clientCmd) clientCmd.isAlias = true;
+    }
   }
 
   if (!clientCmd) {
-    logger.syserr(`[INTERACTION] Komenda ${commandName} nie znaleziona`);
-    return interaction.reply({ 
-      content: `${emojis?.error || '❌'} Command not found.`, 
-      ephemeral: true 
+    logger.syserr(`[INTERACTION] Komenda ${commandName} nie została znaleziona`);
+    return interaction.reply({
+      content: `${emojis?.error || '❌'} Command not found.`,
+      ephemeral: true
     }).catch(() => {});
   }
 
   logger.debug(`[INTERACTION] Znaleziono komendę: ${commandName} | Typ: ${clientCmd.constructor.name}`);
 
-  // === DEFER OD RAZU ===
+  // Deferujemy odpowiedź od razu (żeby nie przekroczyć 3 sekund)
   if (!interaction.replied && !interaction.deferred) {
     logger.debug(`[INTERACTION] Deferuję odpowiedź dla ${commandName}`);
     await interaction.deferReply().catch(err => {
@@ -39,30 +43,30 @@ const handleCommand = async (interaction) => {
 
   try {
     if (typeof clientCmd.execute === 'function') {
-      logger.debug(`[INTERACTION] Wywołuję clientCmd.execute() dla ${commandName}`);
+      logger.debug(`[INTERACTION] Wywołuję .execute() dla ${commandName}`);
       await clientCmd.execute(interaction);
-    } 
-    else if (typeof clientCmd.run === 'function') {
-      logger.debug(`[INTERACTION] Wywołuję clientCmd.run() dla ${commandName}`);
-      await clientCmd.run(interaction.client, interaction);
-    } 
-    else {
-      throw new Error(`Brak metody execute() lub run() w komendzie ${commandName}`);
     }
-  } catch (error) {
-    logger.syserr(`[INTERACTION] BŁĄD w komendzie ${commandName}`);
-    console.error(error);   // Pełny stack trace w logach Rendera
+    else if (typeof clientCmd.run === 'function') {
+      logger.debug(`[INTERACTION] Wywołuję .run() dla ${commandName}`);
+      await clientCmd.run(interaction.client, interaction);
+    }
+    else {
+      throw new Error(`Komenda ${commandName} nie posiada metody execute() ani run()`);
+    }
+  } 
+  catch (error) {
+    logger.syserr(`[INTERACTION] BŁĄD podczas wykonywania komendy ${commandName}`);
+    console.error(error); // Pełny stack trace w logach Rendera
 
-    // Pokazujemy użytkownikowi dokładniejszy błąd (do 1800 znaków)
-    const errorMsg = error.message || error.toString();
+    const errorMsg = (error.message || error.toString()).slice(0, 1800);
 
     await interaction.editReply({
-      content: `${emojis?.error || '❌'} Wystąpił błąd:\n\`\`\`js\n${errorMsg.slice(0, 1800)}\n\`\`\``
+      content: `${emojis?.error || '❌'} Wystąpił błąd:\n\`\`\`js\n${errorMsg}\n\`\`\``
     }).catch(() => {});
   }
 };
 
-// Eksport (pozostałe funkcje jako puste, żeby nie psuć importów w index.js)
+// Eksport (pozostałe funkcje zostawiamy puste, żeby nie psuć reszty bota)
 module.exports = {
   handleCommand,
   clearApplicationCommandData: () => {},
