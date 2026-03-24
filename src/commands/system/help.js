@@ -1,10 +1,6 @@
-# Usuń uszkodzony plik
-rm -f src/commands/system/help.js
-
-# Wstaw CZysty, poprawny plik help.js
-cat > src/commands/system/help.js << 'EOT'
 /**
- * Komenda /help - Poprawna wersja zgodna z loaderem bota
+ * Komenda /help - FINALNA, CZYSTA WERSJA
+ * Zgodna z systemem ładowania Mirasaki + logger.syserr
  */
 
 const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
@@ -21,11 +17,36 @@ const execute = async (interaction) => {
         .setCustomId('help')
         .setPlaceholder('Wybierz kategorię pomocy...')
         .addOptions([
-          { label: 'Wszystkie komendy', value: 'all',     description: 'Lista wszystkich komend', emoji: '📋' },
-          { label: 'Administracja',     value: 'admin',   description: 'Komendy administratorskie', emoji: '🔧' },
-          { label: 'Moderacja',         value: 'moderator', description: 'Komendy moderatorskie', emoji: '🛡️' },
-          { label: 'DayZ / Serwer',     value: 'dayz',    description: 'Komendy serwerowe DayZ', emoji: '🎮' },
-          { label: 'Teleporty',         value: 'teleport', description: 'Dostępne teleporty', emoji: '📍' }
+          {
+            label: 'Wszystkie komendy',
+            value: 'all',
+            description: 'Lista wszystkich dostępnych komend',
+            emoji: '📋'
+          },
+          {
+            label: 'Administracja',
+            value: 'admin',
+            description: 'Komendy dla administratorów',
+            emoji: '🔧'
+          },
+          {
+            label: 'Moderacja',
+            value: 'moderator',
+            description: 'Komendy dla moderatorów',
+            emoji: '🛡️'
+          },
+          {
+            label: 'DayZ / Serwer',
+            value: 'dayz',
+            description: 'Komendy związane z serwerem DayZ',
+            emoji: '🎮'
+          },
+          {
+            label: 'Teleporty',
+            value: 'teleport',
+            description: 'Dostępne lokacje teleportacji',
+            emoji: '📍'
+          }
         ])
     );
 
@@ -34,7 +55,9 @@ const execute = async (interaction) => {
       title: '📚 Pomoc — cftools-discord-bot',
       description: 'Wybierz kategorię z menu poniżej:',
       timestamp: new Date(),
-      footer: { text: `Wersja ${pkg.version} • Husaria` }
+      footer: {
+        text: `Wersja ${pkg.version} • Husaria`
+      }
     };
 
     await interaction.reply({
@@ -57,6 +80,7 @@ const execute = async (interaction) => {
   }
 };
 
+// ==================== METODY WYMAGANE PRZEZ LOADER ====================
 execute.load = (filePath, collection) => {
   const data = new SlashCommandBuilder()
     .setName('help')
@@ -76,4 +100,3 @@ execute.loadAliases = () => {
 };
 
 module.exports = execute;
-EOT
