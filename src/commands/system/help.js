@@ -1,9 +1,9 @@
 /**
- * Komenda /help - FINALNA, STABILNA WERSJA (używa builders + natychmiastowa reply)
- * Naprawia problem "Chat myśli..." na 100%
+ * Komenda /help - FINALNA, STABILNA WERSJA (naprawiony logger + natychmiastowa reply)
  */
 
 const { SlashCommandBuilder, ActionRowBuilder, StringSelectMenuBuilder } = require('discord.js');
+const logger = require('@mirasaki/logger');        // ← DODANE
 const { emojis } = require('../../client');
 const pkg = require('../../../package.json');
 
@@ -11,7 +11,7 @@ const execute = async (interaction) => {
   try {
     logger.debug(`[HELP] Wykonywanie komendy dla ${interaction.user.tag}`);
 
-    // NATYCHMIASTOWA odpowiedź (najbezpieczniejsza metoda)
+    // Natychmiastowa odpowiedź
     const row = new ActionRowBuilder().addComponents(
       new StringSelectMenuBuilder()
         .setCustomId('help')
@@ -81,7 +81,7 @@ const execute = async (interaction) => {
   }
 };
 
-// === OBOWIĄZKOWE METODY DLA TWOJEGO SYSTEMU ŁADOWANIA ===
+// === OBOWIĄZKOWE METODY DLA SYSTEMU ŁADOWANIA ===
 execute.load = (filePath, collection) => {
   const data = new SlashCommandBuilder()
     .setName('help')
