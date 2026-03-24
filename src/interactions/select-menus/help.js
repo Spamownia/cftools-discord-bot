@@ -1,42 +1,53 @@
+/**
+ * Help Select Menu
+ */
+
 const logger = require('@mirasaki/logger');
-const { generateCommandInfoEmbed, generateCommandOverviewEmbed } = require('../../handlers/commands');
-const { HELP_COMMAND_SELECT_MENU, HELP_SELECT_MENU_SEE_MORE_OPTIONS } = require('../../constants');
-const { ComponentCommand } = require('../../classes/Commands');
+const { emojis, commands } = require('../../client');   // dostosuj ścieżkę jeśli potrzeba
 
-module.exports = new ComponentCommand({
-  data: { name: HELP_COMMAND_SELECT_MENU },
+const handleHelpSelectMenu = async (interaction) => {
+  const customId = interaction.customId;
+  const selected = interaction.values[0];
 
-  run: async (client, interaction) => {
-    const {
-      commands, contextMenus, emojis
-    } = client.container;
-    const selectTargetValue = interaction.values[0];
-    const { member } = interaction;
+  logger.debug(`[HELP SELECT] Wybrano: ${selected} | customId: ${customId}`);
 
-    // Check max entries notifier - show default page
-    if (selectTargetValue === HELP_SELECT_MENU_SEE_MORE_OPTIONS) {
-      // Reply to the interaction with our embed
-      interaction.update({ embeds: [ generateCommandOverviewEmbed(commands, interaction) ] });
-      return;
+  try {
+    await interaction.deferUpdate();
+
+    // Tutaj logika wyświetlania kategorii helpa
+    // Przykład – możesz dostosować do swojego systemu kategorii
+    let content = '';
+
+    if (selected === 'all' || selected === 'general') {
+      content = '📋 **Wszystkie komendy**\n\n' + 
+                Array.from(commands.values())
+                  .map(cmd => `**/${cmd.data.name}** - ${cmd.data.description || 'brak opisu'}`)
+                  .join('\n');
+    } else {
+      content = `📂 **Kategoria: ${selected}**\n\nBrak komend w tej kategorii (jeszcze).`;
     }
 
-    // Check valid command
-    const clientCmd = commands.get(selectTargetValue)
-      || contextMenus.get(selectTargetValue)
-      || undefined;
+    await interaction.editReply({
+      content: content,
+      components: []   // usuwa select menu po wyborze (opcjonalnie)
+    });
 
-    if (!clientCmd) {
-      interaction.update({
-        content: `${ emojis.error } ${ member }, I couldn't find the command **\`/${ selectTargetValue }\`**`,
+  } catch (error) {
+    logger.syserr(`[HELP SELECT] Błąd: ${error.message}`);
+    console.error(error);
+
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({
+        content: `${emojis?.error || '❌'} Wystąpił błąd w help select menu.`,
         ephemeral: true
-      });
-      logger.syserr(`Unknown Select Menu Target Value received for Help Command Select Menu: "${ selectTargetValue }"`);
-      return;
+      }).catch(() => {});
     }
-
-    // Update the interaction with the requested command data
-    const embedData = generateCommandInfoEmbed(clientCmd, interaction);
-
-    interaction.update({ embeds: [ embedData ] });
   }
-});
+};
+
+// Ładowanie (zgodne z Twoim systemem .load())
+handleHelpSelectMenu.load = (filePath, collection) => {
+  collection.set('help', handleHelpSelectMenu);   // lub 'help-select' – dostosuj nazwę
+};
+
+module.exports = handleHelpSelectMenu;
