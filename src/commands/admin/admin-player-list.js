@@ -1,7 +1,10 @@
 const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
 const logger = require('@mirasaki/logger');
 const { emojis } = require('../../client');
-const { getServerConfigCommandOptionValue } = require('../../modules/cftClient');
+const {
+  requiredServerConfigCommandOption,
+  getServerConfigCommandOptionValue
+} = require('../../modules/cftClient');
 const cftSDK = require('cftools-sdk');
 
 const execute = async (interaction) => {
@@ -14,7 +17,7 @@ const execute = async (interaction) => {
 
     const embed = new EmbedBuilder()
       .setColor(0x00ff88)
-      .setTitle(`👮‍♂️ Admin Player List – ${serverCfg.NAME}`)
+      .setTitle(`👮 Admin Player List – ${serverCfg.NAME}`)
       .setDescription(sessions.length 
         ? sessions.map(s => `• **${s.playerName}** (${s.id})`).join('\n') 
         : 'Brak graczy online.')
@@ -33,14 +36,14 @@ const execute = async (interaction) => {
 execute.load = (filePath, collection) => {
   const data = new SlashCommandBuilder()
     .setName('admin-player-list')
-    .setDescription('Pokazuje listę graczy (dla adminów)')
+    .setDescription('Pokazuje listę graczy (widok admina)')
     .setDMPermission(false)
     .addStringOption(option => {
       option
-        .setName('server')
-        .setDescription('Wybierz serwer')
-        .setRequired(true)
-        .setChoices(...require('../../modules/cftClient').requiredServerConfigCommandOption.choices);
+        .setName(requiredServerConfigCommandOption.name)
+        .setDescription(requiredServerConfigCommandOption.description)
+        .setRequired(requiredServerConfigCommandOption.required)
+        .setChoices(...requiredServerConfigCommandOption.choices);
       return option;
     });
 
