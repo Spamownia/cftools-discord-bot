@@ -1,35 +1,30 @@
 /**
- * Help Select Menu - Czysta wersja bez getCommandSelectMenu
- * Działa z aktualnym selectMenuHandler.js i index.js
+ * Help Select Menu - FINAL CLEAN VERSION
+ * Zero odniesień do getCommandSelectMenu
  */
 
 const logger = require('@mirasaki/logger');
 const { emojis, commands } = require('../../client');
 
 const execute = async (interaction) => {
-  logger.debug(`[HELP SELECT] Wywołano - wybrano: ${interaction.values[0]}`);
+  logger.debug(`[HELP SELECT] Wybrano: ${interaction.values[0]}`);
 
   try {
-    // Najważniejsze: deferujemy OD RAZU
     await interaction.deferUpdate();
 
     const category = interaction.values[0];
 
-    let content = `📋 **Pomoc Discord Bot**\n\n`;
+    let content = `📋 **Pomoc - ${category === 'all' ? 'Wszystkie komendy' : category}**\n\n`;
 
     if (category === 'all') {
-      content += '**Wszystkie komendy:**\n\n' +
-        Array.from(commands.values())
-          .map(cmd => `**/${cmd.data.name}** — ${cmd.data.description || 'brak opisu'}`)
-          .join('\n');
+      content += Array.from(commands.values())
+        .map(cmd => `**/${cmd.data.name}** — ${cmd.data.description || 'brak opisu'}`)
+        .join('\n');
     } else {
-      content += `**Kategoria: ${category}**\n\nNa razie brak komend w tej kategorii.`;
+      content += `Komendy w kategorii **${category}**:\n\n(na razie pusto)`;
     }
 
-    await interaction.editReply({
-      content: content,
-      components: []          // usuwa menu po wyborze
-    });
+    await interaction.editReply({ content, components: [] });
 
   } catch (error) {
     logger.syserr(`[HELP SELECT] Błąd: ${error.message}`);
@@ -45,7 +40,6 @@ const execute = async (interaction) => {
   }
 };
 
-// Wymagane przez Twój loader selectMenus
 execute.load = (filePath, collection) => {
   collection.set('help', execute);
 };
