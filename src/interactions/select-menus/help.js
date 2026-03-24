@@ -1,35 +1,32 @@
 /**
- * Help Select Menu
+ * Help Select Menu - Poprawiona wersja (bez getCommandSelectMenu)
  */
 
 const logger = require('@mirasaki/logger');
-const { emojis, commands } = require('../../client');   // dostosuj ścieżkę jeśli potrzeba
+const { emojis, selectMenus, commands } = require('../../client');
 
-const handleHelpSelectMenu = async (interaction) => {
+const execute = async (interaction) => {
   const customId = interaction.customId;
-  const selected = interaction.values[0];
+  const value = interaction.values[0];
 
-  logger.debug(`[HELP SELECT] Wybrano: ${selected} | customId: ${customId}`);
+  logger.debug(`[HELP SELECT] Wybrano kategorię: ${value} (customId: ${customId})`);
 
   try {
     await interaction.deferUpdate();
 
-    // Tutaj logika wyświetlania kategorii helpa
-    // Przykład – możesz dostosować do swojego systemu kategorii
-    let content = '';
+    let replyContent = '📋 **Lista komend**\n\n';
 
-    if (selected === 'all' || selected === 'general') {
-      content = '📋 **Wszystkie komendy**\n\n' + 
-                Array.from(commands.values())
-                  .map(cmd => `**/${cmd.data.name}** - ${cmd.data.description || 'brak opisu'}`)
-                  .join('\n');
+    if (value === 'all') {
+      replyContent += Array.from(commands.values())
+        .map(cmd => `**/${cmd.data.name}** — ${cmd.data.description || 'brak opisu'}`)
+        .join('\n');
     } else {
-      content = `📂 **Kategoria: ${selected}**\n\nBrak komend w tej kategorii (jeszcze).`;
+      replyContent += `**Kategoria: ${value}**\n\nNie znaleziono komend w tej kategorii (na razie).`;
     }
 
     await interaction.editReply({
-      content: content,
-      components: []   // usuwa select menu po wyborze (opcjonalnie)
+      content: replyContent,
+      components: [] // usuwa menu po wyborze
     });
 
   } catch (error) {
@@ -38,16 +35,16 @@ const handleHelpSelectMenu = async (interaction) => {
 
     if (!interaction.replied && !interaction.deferred) {
       await interaction.reply({
-        content: `${emojis?.error || '❌'} Wystąpił błąd w help select menu.`,
+        content: `${emojis?.error || '❌'} Wystąpił błąd przy wyświetlaniu pomocy.`,
         ephemeral: true
       }).catch(() => {});
     }
   }
 };
 
-// Ładowanie (zgodne z Twoim systemem .load())
-handleHelpSelectMenu.load = (filePath, collection) => {
-  collection.set('help', handleHelpSelectMenu);   // lub 'help-select' – dostosuj nazwę
+// Wymagane przez Twój system ładowania
+execute.load = (filePath, collection) => {
+  collection.set('help', execute);        // nazwa "help" – taka sama jak w selectMenus
 };
 
-module.exports = handleHelpSelectMenu;
+module.exports = execute;
