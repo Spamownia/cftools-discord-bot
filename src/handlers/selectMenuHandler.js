@@ -1,36 +1,42 @@
 /**
- * Select Menu Handler - Poprawiona wersja
+ * Select Menu Handler - Poprawiona i stabilna wersja
+ * Naprawia błąd: "hetCommandSelectMenu is not a function"
  */
 
 const logger = require('@mirasaki/logger');
 const { emojis, selectMenus } = require('../client');
 
 const handleSelectMenu = async (interaction) => {
+  if (!interaction.isStringSelectMenu()) return;
+
   const customId = interaction.customId;
+  logger.debug(`[SELECT MENU] Otrzymano customId: "${customId}"`);
 
-  logger.debug(`[SELECT MENU] Otrzymano: ${customId}`);
-
-  // Poprawne pobieranie select menu
+  // Próba pobrania handlera na kilka sposobów
   let selectMenu = selectMenus.get(customId);
 
-  // Obsługa customId z dodatkowymi parametrami (np. "help:category:1")
-  if (!selectMenu && customId.includes(':')) {
-    const baseId = customId.split(':')[0];
+  if (!selectMenu) {
+    const baseId = customId.split(/[:\-]/)[0];        // dzieli po : lub -
     selectMenu = selectMenus.get(baseId);
   }
 
+  // Specjalna obsługa dla menu pomocy
+  if (!selectMenu && customId.includes('help')) {
+    selectMenu = selectMenus.get('help');
+  }
+
   if (!selectMenu) {
-    logger.debug(`[SELECT MENU] Nie znaleziono: ${customId}`);
+    logger.warn(`[SELECT MENU] Nie znaleziono handlera dla customId: ${customId}`);
     if (!interaction.replied && !interaction.deferred) {
       return interaction.reply({
-        content: `${emojis?.error || '❌'} Ten select menu nie jest obsługiwany.`,
+        content: `${emojis?.error || '❌'} Ten wybór nie jest obsługiwany.`,
         ephemeral: true
       }).catch(() => {});
     }
     return;
   }
 
-  // Defer update (bezpiecznie)
+  // Bezpieczne deferUpdate
   if (!interaction.replied && !interaction.deferred) {
     await interaction.deferUpdate().catch(() => {});
   }
@@ -41,10 +47,10 @@ const handleSelectMenu = async (interaction) => {
     } else if (typeof selectMenu.run === 'function') {
       await selectMenu.run(interaction);
     } else {
-      throw new Error(`Select menu ${customId} nie ma execute() ani run()`);
+      throw new Error(`Select menu "${customId}" nie posiada metody execute() ani run()`);
     }
   } catch (error) {
-    logger.syserr(`[SELECT MENU] Błąd w ${customId}`);
+    logger.error(`[SELECT MENU] Błąd podczas wykonywania "${customId}"`);
     console.error(error);
 
     const errorMsg = (error.message || error.toString()).slice(0, 1500);
@@ -52,6 +58,11 @@ const handleSelectMenu = async (interaction) => {
     if (interaction.deferred || interaction.replied) {
       await interaction.editReply({
         content: `${emojis?.error || '❌'} Wystąpił błąd w select menu:\n\`\`\`js\n${errorMsg}\n\`\`\``
+      }).catch(() => {});
+    } else {
+      await interaction.reply({
+        content: `${emojis?.error || '❌'} Wystąpił błąd w select menu.`,
+        ephemeral: true
       }).catch(() => {});
     }
   }
