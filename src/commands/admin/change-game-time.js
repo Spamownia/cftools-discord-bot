@@ -1,88 +1,57 @@
-const { ApplicationCommandOptionType } = require('discord.js');
-const { ChatInputCommand } = require('../../classes/Commands');
+const { SlashCommandBuilder, EmbedBuilder } = require('discord.js');
+const logger = require('@mirasaki/logger');
+const { emojis } = require('../../client');
 const {
   requiredServerConfigCommandOption,
   getServerConfigCommandOptionValue,
-  postGameLabsAction,
-  broadcastMessage
+  changeGameTime
 } = require('../../modules/cftClient');
 
-module.exports = new ChatInputCommand({
-  permLevel: 'Administrator',
-  global: true,
-  data: {
-    description: 'Change the current in-game time',
-    options: [
-      requiredServerConfigCommandOption,
-      {
-        name: 'hour',
-        description: 'The hour to set the time to',
-        type: ApplicationCommandOptionType.Integer,
-        required: true,
-        min_value: 0,
-        max_value: 23
-      },
-      {
-        name: 'minute',
-        description: 'The minute to set the time to',
-        type: ApplicationCommandOptionType.Integer,
-        required: true,
-        min_value: 0,
-        max_value: 59
-      },
-      {
-        name: 'notify-players',
-        description: 'Send a global notification to the players, default true',
-        type: ApplicationCommandOptionType.Boolean,
-        required: false
-      }
-    ]
-  },
-
-  run: async (client, interaction) => {
-    // Destructuring
-    const { member, options } = interaction;
-    const { emojis } = client.container;
-    const hour = options.getInteger('hour');
-    const minute = options.getInteger('minute');
-    const notifyPlayers = options.getBoolean('notify-players') ?? true;
-
-    // Deferring our reply
+const execute = async (interaction) => {
+  try {
     await interaction.deferReply();
-
-    // Resolve options
     const serverCfg = getServerConfigCommandOptionValue(interaction);
+    const time = interaction.options.getString('time');
 
-    // Performing request
-    const res = await postGameLabsAction(
-      serverCfg.CFTOOLS_SERVER_API_ID,
-      'CFCloud_WorldTime',
-      'world',
-      null,
-      {
-        hour: { valueInt: hour },
-        minute: { valueInt: minute }
-      }
+    await changeGameTime(serverCfg.CFTOOLS_SERVER_API_ID, time);
+
+    const embed = new EmbedBuilder()
+      .setColor(0x00ff88)
+      .setTitle('⏰ Czas w grze zmieniony')
+      .setDescription(`Nowy czas: **${time}**`)
+      .setFooter({ text: `Serwer: ${serverCfg.NAME}` });
+
+    await interaction.editReply({ embeds: [embed] });
+  } catch (error) {
+    logger.syserr(`[CHANGE-GAME-TIME] Błąd: ${error.message}`);
+    console.error(error);
+    if (interaction.deferred && !interaction.replied) {
+      await interaction.editReply({ content: `${emojis.error || '❌'} Nie udało się zmienić czasu.` });
+    }
+  }
+};
+
+execute.load = (filePath, collection) => {
+  const data = new SlashCommandBuilder()
+    .setName('change-game-time')
+    .setDescription('Zmienia czas w grze (np. 12:00)')
+    .setDMPermission(false)
+    .addStringOption(option => {
+      option
+        .setName(requiredServerConfigCommandOption.name)
+        .setDescription(requiredServerConfigCommandOption.description)
+        .setRequired(requiredServerConfigCommandOption.required)
+        .setChoices(...requiredServerConfigCommandOption.choices);
+      return option;
+    })
+    .addStringOption(option =>
+      option.setName('time')
+        .setDescription('Nowy czas (format HH:MM)')
+        .setRequired(true)
     );
 
-    if (res !== true) {
-      interaction.editReply({ content: `${ emojis.error } ${ member }, invalid response code - time might not have been updated` });
-      return;
-    }
+  collection.set('change-game-time', { data, execute, category: 'admin', aliases: [] });
+};
 
-    const hourStr = hour.toString().padStart(2, '0');
-    const minuteStr = minute.toString().padStart(2, '0');
-    const timeStr = `${ hourStr }:${ minuteStr }`;
-
-    // Notify player
-    if (notifyPlayers) {
-      await broadcastMessage(
-        serverCfg.CFTOOLS_SERVER_API_ID,
-        `The time has been changed to ${ timeStr } by an administrator (this might take a while to take effect)`
-      );
-    }
-
-    // User feedback on success
-    interaction.editReply({ content: `${ emojis.success } ${ member }, time has been changed to **\`${ timeStr }\`**!` });
-  }
-});
+execute.loadAliases = () => [];
+module.exports = execute;
