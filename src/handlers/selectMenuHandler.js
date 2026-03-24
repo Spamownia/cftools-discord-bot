@@ -1,6 +1,5 @@
 /**
- * Select Menu Handler - Poprawiona i stabilna wersja
- * Naprawia błąd: "hetCommandSelectMenu is not a function"
+ * Select Menu Handler - Stabilna wersja (naprawiony logger)
  */
 
 const logger = require('@mirasaki/logger');
@@ -12,15 +11,13 @@ const handleSelectMenu = async (interaction) => {
   const customId = interaction.customId;
   logger.debug(`[SELECT MENU] Otrzymano customId: "${customId}"`);
 
-  // Próba pobrania handlera na kilka sposobów
   let selectMenu = selectMenus.get(customId);
 
   if (!selectMenu) {
-    const baseId = customId.split(/[:\-]/)[0];        // dzieli po : lub -
+    const baseId = customId.split(/[:\-]/)[0];
     selectMenu = selectMenus.get(baseId);
   }
 
-  // Specjalna obsługa dla menu pomocy
   if (!selectMenu && customId.includes('help')) {
     selectMenu = selectMenus.get('help');
   }
@@ -36,7 +33,6 @@ const handleSelectMenu = async (interaction) => {
     return;
   }
 
-  // Bezpieczne deferUpdate
   if (!interaction.replied && !interaction.deferred) {
     await interaction.deferUpdate().catch(() => {});
   }
@@ -47,10 +43,10 @@ const handleSelectMenu = async (interaction) => {
     } else if (typeof selectMenu.run === 'function') {
       await selectMenu.run(interaction);
     } else {
-      throw new Error(`Select menu "${customId}" nie posiada metody execute() ani run()`);
+      throw new Error(`Select menu "${customId}" nie posiada execute() ani run()`);
     }
   } catch (error) {
-    logger.error(`[SELECT MENU] Błąd podczas wykonywania "${customId}"`);
+    logger.syserr(`[SELECT MENU] Błąd podczas wykonywania "${customId}"`);
     console.error(error);
 
     const errorMsg = (error.message || error.toString()).slice(0, 1500);
